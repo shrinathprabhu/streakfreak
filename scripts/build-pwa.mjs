@@ -17,6 +17,7 @@ const paths = (await files(output))
   .filter(
     (p) =>
       /\.(js|css|woff2?|png|svg|webmanifest|html|rsc|json)$/.test(p) &&
+      !relative(output, p).split('/').some((part) => part.startsWith('.')) &&
       !p.endsWith('/sw.js'),
   )
   .sort();

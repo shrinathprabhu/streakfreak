@@ -64,6 +64,7 @@ await test('production files are complete and canonical metadata is correct', as
   for (const url of assets) {
     assert.ok(url.startsWith(home));
     assert.ok(!url.includes('/server/'));
+    assert.ok(!url.includes('/.vite/'));
     const file = resolve(
       root,
       url === home ? 'index.html' : url.slice(home.length),
