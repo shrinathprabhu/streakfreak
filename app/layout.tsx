@@ -1,7 +1,17 @@
 import type { Metadata } from 'next';
+import localFont from 'next/font/local';
 import site from '@/lib/site-content.json';
 import './globals.css';
 const base = process.env.NEXT_PUBLIC_BASE_PATH || '';
+const geistSans = localFont({
+  src: './fonts/GeistVariable.woff2',
+  variable: '--font-geist-sans',
+  weight: '100 900',
+  style: 'normal',
+  display: 'swap',
+  preload: true,
+  fallback: ['Helvetica Neue', 'Arial', 'sans-serif'],
+});
 export const metadata: Metadata = {
   metadataBase: new URL(site.canonical),
   title: site.title,
@@ -63,11 +73,11 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
+    <html lang="en" className={geistSans.variable}>
       <body>
         {children}
         <noscript>
-          <div style={{ padding: '30px', fontFamily: 'sans-serif' }}>
+          <div style={{ padding: '30px' }}>
             Streakfreak needs JavaScript to save your habits locally. Enable
             JavaScript in this browser to get started.
           </div>

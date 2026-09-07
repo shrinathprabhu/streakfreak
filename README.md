@@ -2,6 +2,8 @@
 
 A frontend-only, installable habit tracker. No login, analytics, backend, subscription, or cloud habit storage. The UI uses React 19, TypeScript, Vinext’s static export, Base UI/Shadcn primitives, Lucide icons, and plain CSS with Tailwind utilities.
 
+Typography uses [Geist Sans by Vercel](https://vercel.com/font), bundled locally as a 69.7 KB variable WOFF2. Headings, body text and controls share the font. `next/font/local` provides a preload and `font-display: swap`; the service worker caches the font for offline use. The original OFL license ships with the site. Font source details are in `app/fonts/README.md`.
+
 ## Run
 
 Node 22.13+.
