@@ -81,9 +81,33 @@ Mount `dist/client/` at `/streakfreak/` and **serve its index at `/streakfreak` 
 
 The subpath build gives the manifest an explicit `/streakfreak` ID, start URL and scope. The worker registers at the same scope with `Service-Worker-Allowed: /streakfreak`, covering the exact canonical page. Browser scopes use prefix matching, so the worker also checks path boundaries and never intercepts sibling applications or unknown page routes. Configure the emitted `Service-Worker-Allowed` header when deploying; do not deploy a conflicting app under a `/streakfreak...` prefix. Root builds retain the portable `./` manifest values.
 
-Serve JavaScript with its proper MIME type and `sw.js` without a long-lived immutable cache. Cloudflare-compatible headers are emitted in `_headers`; configure equivalent headers on other hosts. Hashed framework assets can be cached for a year; HTML and the worker must revalidate. Enable the host’s Brotli/gzip compression.
+Serve JavaScript with its proper MIME type and `sw.js` without a long-lived immutable cache. The build emits Cloudflare-compatible `_headers`; the Vercel build and local static preview apply the same policies. Hashed framework assets can be cached for a year; HTML and the worker must revalidate. Enable the host’s Brotli/gzip compression.
 
 Custom DNS and the existing `lowkey.tools` deployment are external configuration. A private Sites preview is separate from the no-login application and does not connect those domains automatically.
+
+## Security headers, caching and Vercel
+
+`scripts/hosting-rules.mjs` is the shared policy source for Cloudflare `_headers`, the local static server and Vercel Build Output API routes. Security policy changes also change the PWA cache version so old cached documents can receive the new policy.
+
+- CSP allows same-origin resources and exact SHA-256 hashes of the exported startup scripts. It disallows arbitrary inline JavaScript, inline event attributes, `eval`, object embeds, base tags, form navigation and framing. Inline **styles** remain allowed because React and Base UI use them for sizing and positioning. Font loading, local file import, Blob downloads and service-worker requests remain supported. JSON-LD is an inert data block and does not need executable script permission.
+- HSTS lasts one year and applies to the serving host, without a preload registration or a policy imposed on unrelated subdomains. Framing is also denied through `X-Frame-Options`; MIME sniffing is disabled. The policy includes `no-referrer`, same-origin opener/resource protection, disabled DNS prefetch, and disabled camera, microphone, location, payment and USB permissions.
+- The exported 404 keeps its static content but discards unused hydration scripts, canonical metadata and conflicting index directives. Vercel and the local server return 404 with `no-store` and `X-Robots-Tag: noindex` for missing pages. Unsupported write methods receive 405.
+- Vercel and the local server expose only the public static asset list, excluding dotfiles, host configuration, source maps and the internal client-entry manifest. They have no catch-all rewrite to a successful app page.
+
+| Resource                                       | Browser cache policy                                                                   |
+| ---------------------------------------------- | -------------------------------------------------------------------------------------- |
+| App HTML, RSC payload, web manifest            | `public, max-age=0, must-revalidate`                                                   |
+| Service worker                                 | `no-cache, max-age=0, must-revalidate` plus the correct `Service-Worker-Allowed` scope |
+| Hashed `/_next/static/` scripts, CSS and fonts | `public, max-age=31536000, immutable`                                                  |
+| Unversioned icons and favicon                  | `public, max-age=86400`                                                                |
+| Sitemap, robots, llms and font license         | `public, max-age=3600`                                                                 |
+| Missing pages and rejected writes              | `no-store`                                                                             |
+
+The root `vercel.json` selects the static build rather than Next.js server deployment. On Vercel, connect this repository and keep its declared build command, `npm run build:vercel`. It runs the normal static export and creates `.vercel/output/static/` plus `.vercel/output/config.json` with fresh CSP hashes, headers, canonical-path redirects and real 404 routes. Do not set a conflicting output-directory override or edit the generated rules manually. This produces no Vercel Functions or server-side data store.
+
+Use the default build for a standalone host such as `streakfreak.lowkey.tools`. Set `NEXT_PUBLIC_BASE_PATH=/streakfreak` for the canonical subpath: the Vercel adapter mounts files under that path, serves `/streakfreak` with 200, and redirects its trailing-slash and index aliases. If the existing Lowkey Tools hub owns the domain, its project still needs to route this path to the app and merge root crawl files; this repository does not overwrite that project. The subdomain remains usable until a separate domain redirect is configured, preserving access to users’ origin-specific exports.
+
+Vercel settings are prepared in source and generated output; a live Vercel deployment, DNS, account firewall settings and platform-added scripts have not been verified here. The current publication uses Sites. Direct authenticated HTTP inspection of that preview showed that its host does **not** apply the app’s `_headers` file: it returns its own revalidation cache policy and omits the custom security headers. The configuration therefore must not be described as enforced on the Sites preview. The local server’s responses and generated Vercel rules are verified; final production headers still need verification after deployment on Vercel or another compatible host. The build rejects an oversized CSP instead of weakening it to allow arbitrary scripts. References: [Vercel Build Output API](https://vercel.com/docs/build-output-api/configuration), [Vercel configuration](https://vercel.com/docs/project-configuration/vercel-json), [CSP script hashes](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Security-Policy/script-src), [Cloudflare header rules and limits](https://developers.cloudflare.com/workers/static-assets/headers/).
 
 ## Search, answer engines and attribution
 
@@ -110,8 +134,10 @@ npm run lint
 npm test
 npm run build
 node --test tests/pwa.test.mjs tests/discovery.test.mjs
+node scripts/build-vercel.mjs
+node --test tests/security.test.mjs
 ```
 
-The tests exercise goal semantics, calendar/DST behavior, streak gaps, grouped history, backup validation, CSV injection escaping, IndexedDB transactions, goal snapshot preservation, import merges, and cascading deletion. Production tests verify the precache files, canonical/manifest paths, cache cleanup isolation, exact-path offline fallback, request filtering, static semantic landmarks, matching FAQ/schema facts, social metadata, creator links and crawler files. Run production tests against both root and `NEXT_PUBLIC_BASE_PATH=/streakfreak` builds. Shadcn-generated files are excluded from the app’s lint scope; they are retained unmodified.
+The tests exercise goal semantics, calendar/DST behavior, streak gaps, grouped history, backup validation, CSV injection escaping, IndexedDB transactions, goal snapshot preservation, import merges, and cascading deletion. Production tests verify the precache files, canonical/manifest paths, cache cleanup isolation, exact-path offline fallback, request filtering, static semantic landmarks, matching FAQ/schema facts, social metadata, creator links and crawler files. Security tests start the local static server and check actual response headers, every executable startup hash, resource caching, redirects, 404/405 behavior, HEAD requests, blocked internal files and matching Vercel output. Run production tests against both root and `NEXT_PUBLIC_BASE_PATH=/streakfreak` builds, passing the same environment variable to the Vercel adapter and security tests. Shadcn-generated files are excluded from the app’s lint scope; they are retained unmodified.
 
 Optional WebMCP tools (`read_habit_progress`, `save_habit_check_in`) use the same local actions and are only registered if the browser provides `document.modelContext`. Their adapter contract is unit-tested; a live supported WebMCP browser was not available for integration verification. No browser interaction, visual, or device installation testing has been performed in this task.

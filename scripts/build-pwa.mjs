@@ -1,7 +1,14 @@
-import { readdir, readFile, writeFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import { join, relative } from 'node:path';
 import { createHash } from 'node:crypto';
 import { buildDiscovery } from './build-discovery.mjs';
+import {
+  publicFiles,
+  contentSecurityPolicy,
+  securityHeaders,
+  staticErrorPage,
+  cloudflareHeaders,
+} from './hosting-rules.mjs';
 const output = join(process.cwd(), 'dist/client');
 const base = process.env.NEXT_PUBLIC_BASE_PATH || '';
 const prefix = `${base}/`;
@@ -16,25 +23,9 @@ if (base) {
   manifest.scope = base;
 }
 await writeFile(manifestPath, JSON.stringify(manifest, null, 2) + '\n');
-async function files(dir) {
-  const results = [];
-  for (const e of await readdir(dir, { withFileTypes: true })) {
-    const path = join(dir, e.name);
-    if (e.isDirectory()) results.push(...(await files(path)));
-    else results.push(path);
-  }
-  return results;
-}
-const paths = (await files(output))
-  .filter(
-    (p) =>
-      /\.(js|css|woff2?|png|svg|webmanifest|html|rsc|json|txt|xml)$/.test(p) &&
-      !relative(output, p)
-        .split('/')
-        .some((part) => part.startsWith('.')) &&
-      !p.endsWith('/sw.js'),
-  )
-  .sort();
+const paths = (await publicFiles(output))
+  .filter((file) => file !== 'sw.js')
+  .map((file) => join(output, file));
 if (!paths.some((p) => relative(output, p) === 'index.html'))
   throw new Error('Static index.html is required.');
 // Keep the static export mountable under a subpath without a server router.
@@ -49,7 +40,12 @@ if (base) {
     if (scoped !== content) await writeFile(path, scoped);
   }
 }
+const errorPage = join(output, '404.html');
+await writeFile(errorPage, staticErrorPage(await readFile(errorPage, 'utf8')));
+const csp = await contentSecurityPolicy(output);
 const hash = createHash('sha256');
+// Header changes must also refresh the cached document's security policy.
+hash.update(JSON.stringify(securityHeaders(csp)));
 for (const p of paths) hash.update(await readFile(p));
 const version = hash.digest('hex').slice(0, 16);
 const assets = [
@@ -95,7 +91,7 @@ self.addEventListener('fetch',event=>{
 await writeFile(join(output, 'sw.js'), worker);
 await writeFile(
   join(output, '_headers'),
-  `${scope}\n  Cache-Control: no-cache\n${prefix}sw.js\n  Cache-Control: no-cache\n  Service-Worker-Allowed: ${scope}\n${prefix}index.html\n  Cache-Control: no-cache\n${prefix}manifest.webmanifest\n  Cache-Control: no-cache\n${prefix}_next/static/*\n  Cache-Control: public, max-age=31536000, immutable\n${prefix}sitemap.xml\n  Content-Type: application/xml; charset=utf-8\n  Cache-Control: public, max-age=3600\n${prefix}robots.txt\n  Content-Type: text/plain; charset=utf-8\n  Cache-Control: public, max-age=3600\n${prefix}llms.txt\n  Content-Type: text/plain; charset=utf-8\n  Cache-Control: public, max-age=3600\n/*\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: no-referrer\n  Permissions-Policy: camera=(), microphone=(), geolocation=()\n`,
+  await cloudflareHeaders(output, base, csp),
 );
 console.log(
   `Offline shell ready: ${assets.length} assets, scope ${prefix}, version ${version}.`,
