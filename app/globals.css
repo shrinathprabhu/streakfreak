@@ -1460,6 +1460,7 @@ footer b {
   flex-wrap: wrap;
 }
 .icon-option {
+  position: relative;
   display: grid;
   place-items: center;
   width: 40px;
@@ -1484,6 +1485,7 @@ footer b {
   gap: 10px !important;
 }
 .color-option {
+  position: relative;
   width: 29px;
   height: 29px;
   background: var(--habit);

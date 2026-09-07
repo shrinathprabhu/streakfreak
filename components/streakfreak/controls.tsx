@@ -239,7 +239,7 @@ export function HabitForm({
                     id={`habit-icon-${icon}`}
                     value={icon}
                     aria-label={icon}
-                    className="sr-only"
+                    className="sr-only absolute"
                   />
                   <HabitSymbol icon={icon} size={20} />
                 </label>
@@ -264,7 +264,7 @@ export function HabitForm({
                     id={`habit-color-${color}`}
                     value={color}
                     aria-label={color}
-                    className="sr-only"
+                    className="sr-only absolute"
                   />
                   {form.color === color && <Check size={16} />}
                 </label>
