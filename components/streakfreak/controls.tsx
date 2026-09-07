@@ -343,7 +343,7 @@ export function CheckIn({
         </span>
         <DialogTitle className="dialog-title">{habit.name}</DialogTitle>
         <DialogDescription>
-          {new Date(`${date}T12:00:00`).toLocaleDateString(undefined, {
+          {new Date(`${date}T12:00:00`).toLocaleDateString('en-US', {
             weekday: 'long',
             month: 'long',
             day: 'numeric',

@@ -432,7 +432,7 @@ export default function Home() {
             </TabsList>
             <span className="nav-date">
               {today
-                ? parseDate(today).toLocaleDateString(undefined, {
+                ? parseDate(today).toLocaleDateString('en-US', {
                     weekday: 'long',
                     month: 'short',
                     day: 'numeric',
@@ -563,7 +563,7 @@ export default function Home() {
                         }}
                         key={d}
                       >
-                        {parseDate(d).toLocaleDateString(undefined, {
+                        {parseDate(d).toLocaleDateString('en-US', {
                           month: 'short',
                         })}
                       </span>
@@ -597,7 +597,7 @@ export default function Home() {
                         d,
                       );
                       const future = d > today;
-                      const label = `${parseDate(d).toLocaleDateString(undefined, { dateStyle: 'full' })}: ${done} of ${due} goals completed${d === today ? ', today' : ''}`;
+                      const label = `${parseDate(d).toLocaleDateString('en-US', { dateStyle: 'full' })}: ${done} of ${due} goals completed${d === today ? ', today' : ''}`;
                       return (
                         <button
                           key={d}
@@ -670,7 +670,7 @@ export default function Home() {
                       {date === today
                         ? 'Today'
                         : date
-                          ? parseDate(date).toLocaleDateString(undefined, {
+                          ? parseDate(date).toLocaleDateString('en-US', {
                               month: 'short',
                               day: 'numeric',
                             })
@@ -1033,7 +1033,7 @@ export default function Home() {
                     <small>
                       {h.direction === 'atMost' ? 'At most' : 'At least'}{' '}
                       {formatAmount(h.target)} {h.unit} · Since{' '}
-                      {parseDate(h.startDate).toLocaleDateString(undefined, {
+                      {parseDate(h.startDate).toLocaleDateString('en-US', {
                         dateStyle: 'medium',
                       })}
                     </small>
