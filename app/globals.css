@@ -1822,3 +1822,98 @@ footer b {
 .stat-accent .stat-caption {
   font-size: 12px;
 }
+
+/* Reflections stay attached to a daily check-in, including past days. */
+.habit-reflection {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  margin-top: 17px;
+  padding: 13px 0 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+  background: transparent;
+  color: var(--habit);
+  text-align: left;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.habit-reflection > svg {
+  margin-top: 3px;
+}
+.habit-reflection > span {
+  flex: 1;
+  min-width: 0;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+.habit-reflection.has-note {
+  color: #796e5e;
+}
+.habit-reflection:hover {
+  color: var(--habit);
+}
+.habit-reflection:hover > span {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.reflection-field {
+  margin-top: 24px;
+  margin-bottom: 23px;
+}
+.reflection-success {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 16px;
+  color: var(--habit);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.reflection-hint {
+  margin: 6px 0 11px;
+  color: #8d8171;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.reflection-input[data-slot='textarea'] {
+  min-height: 112px;
+  max-height: 260px;
+  resize: vertical;
+  field-sizing: fixed;
+  font-size: 16px;
+  line-height: 1.6;
+  padding: 11px 13px;
+}
+.reflection-input[data-slot='textarea']::placeholder {
+  color: #a49888;
+}
+.reflection-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: 8px;
+  color: #948878;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.reflection-meta > span:last-child {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 700px) {
+  .habit-reflection {
+    font-size: 12px;
+    gap: 6px;
+  }
+  .reflection-meta {
+    flex-wrap: wrap;
+    gap: 4px 12px;
+  }
+}

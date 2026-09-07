@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   BookOpen,
   Check,
@@ -21,6 +21,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -31,6 +32,7 @@ import {
 import {
   COLORS,
   ICONS,
+  MAX_NOTE_LENGTH,
   formatAmount,
   localDate,
   type Direction,
@@ -315,6 +317,7 @@ export function CheckIn({
   date,
   entry,
   busy,
+  focusReflection = false,
   onSave,
   onRemove,
   onClose,
@@ -323,13 +326,23 @@ export function CheckIn({
   date: string;
   entry?: Entry;
   busy: boolean;
-  onSave: (value: number) => Promise<boolean>;
+  focusReflection?: boolean;
+  onSave: (value: number, note: string) => Promise<boolean>;
   onRemove: () => Promise<boolean>;
   onClose: () => void;
 }) {
   const [value, setValue] = useState(entry ? String(entry.value) : '');
+  const [note, setNote] = useState(entry?.note ?? '');
+  const noteInput = useRef<HTMLTextAreaElement>(null);
   const target = entry?.target ?? habit.target;
   const direction = entry?.direction ?? habit.direction;
+  const amount = Number(value);
+  const goalMet =
+    value !== '' &&
+    Number.isFinite(amount) &&
+    amount >= 0 &&
+    amount <= 1000000 &&
+    (direction === 'atMost' ? amount <= target : amount >= target);
   return (
     <Dialog
       open
@@ -337,7 +350,10 @@ export function CheckIn({
         if (!open && !busy) onClose();
       }}
     >
-      <DialogContent className={`app-dialog checkin-dialog ${habit.color}`}>
+      <DialogContent
+        className={`app-dialog checkin-dialog ${habit.color}`}
+        initialFocus={focusReflection ? noteInput : undefined}
+      >
         <span className="habit-icon">
           <HabitSymbol icon={habit.icon} />
         </span>
@@ -353,7 +369,7 @@ export function CheckIn({
         <form
           onSubmit={async (e) => {
             e.preventDefault();
-            if (value !== '' && (await onSave(Number(value)))) onClose();
+            if (value !== '' && (await onSave(Number(value), note))) onClose();
           }}
         >
           <label className="field-label log-field">
@@ -406,6 +422,40 @@ export function CheckIn({
               Log your actual total when your day is done. Zero counts too.
             </p>
           )}
+          <div className="reflection-field">
+            {goalMet && (
+              <p className="reflection-success">
+                <Check size={16} /> Goal reached. Give this win a little
+                context.
+              </p>
+            )}
+            <label className="field-label" htmlFor="checkin-reflection">
+              Reflection / outcome <span className="optional">optional</span>
+            </label>
+            <p className="reflection-hint" id="reflection-hint">
+              What did you achieve, learn, or notice?
+            </p>
+            <Textarea
+              ref={noteInput}
+              id="checkin-reflection"
+              className="reflection-input"
+              value={note}
+              onChange={(event) => setNote(event.target.value)}
+              maxLength={MAX_NOTE_LENGTH}
+              rows={4}
+              placeholder="Finished my walk feeling clearer. Taking the same route tomorrow."
+              aria-describedby="reflection-hint reflection-export-note"
+            />
+            <div className="reflection-meta">
+              <span id="reflection-export-note">
+                Saved with this day. Included in your exports.
+              </span>
+              <span>
+                {note.length.toLocaleString('en-US')} /{' '}
+                {MAX_NOTE_LENGTH.toLocaleString('en-US')}
+              </span>
+            </div>
+          </div>
           <div className="dialog-actions">
             {entry && (
               <button

@@ -27,6 +27,7 @@ Serve `dist/client/` on any HTTPS static host. `npm start` is only a local stati
 - First run creates four editable habits, with no invented history.
 - Full-year heatmap with habit filtering, leap years, year navigation, arrow-key navigation, and date selection.
 - Backdated entries from a habit’s start date; no future check-ins.
+- Optional reflections/outcome notes for each check-in, with a closing-note shortcut on completed habits and a note excerpt on the daily card. Reopen any day to read or edit its reflection.
 - Current and best streaks, both across the journal and per habit.
 - Edit/delete habits, update/clear check-ins, and confirm permanent habit deletion.
 - Complete JSON backups, CSV exports, and validated, atomic JSON merge imports.
@@ -40,12 +41,14 @@ IndexedDB database `streakfreak`, version 1:
 | Store | Key | Contents |
 | --- | --- | --- |
 | `habits` | `id` | name, description, unit, target, direction, icon, color, startDate |
-| `entries` | `habitId:YYYY-MM-DD` | habitId, local date, value, target snapshot, direction snapshot, updatedAt |
+| `entries` | `habitId:YYYY-MM-DD` | habitId, local date, value, target snapshot, direction snapshot, updatedAt, optional note |
 | `meta` | string | idempotent initialization flag |
 
 `direction` is `atLeast` or `atMost`. An absent entry never completes a goal, even for a maximum limit. An explicitly logged zero can complete a limit. Habit targets are user-defined presets, not health recommendations.
 
 Every entry snapshots its goal and direction at its first save. Editing a habit affects newly created entries; updating an existing entry retains its original goal. Start-date edits cannot strand existing entries. All writes resolve only after the IndexedDB transaction commits; a failed transaction does not produce a success message. BroadcastChannel refreshes other open tabs.
+
+Reflections use an optional `note` string on the same daily entry, up to 2,000 characters. No IndexedDB version change is needed, and existing version-1 backups remain valid. Numeric-only updates and legacy imports that omit `note` preserve an existing reflection; an explicitly empty note clears it. Deleting a check-in also deletes its reflection. JSON backups include notes and CSV appends a `note` column for report preparation, preserving multiline text and escaping spreadsheet formula prefixes. This provides report data; it does not generate a separate formatted report document.
 
 A streak counts consecutive **local calendar dates** with at least one goal met (or that specific habit met). Today may remain incomplete without breaking yesterday’s streak. A missed prior day resets the current streak; the historical best remains. Calendar arithmetic uses local noon to handle daylight saving safely.
 

@@ -20,6 +20,7 @@ import {
   Download,
   Flame,
   LayoutGrid,
+  MessageSquareText,
   LoaderCircle,
   LockKeyhole,
   Pencil,
@@ -110,9 +111,11 @@ export default function Home() {
     initial: Habit | Preset;
     editing: boolean;
   } | null>(null);
-  const [logging, setLogging] = useState<{ habit: Habit; date: string } | null>(
-    null,
-  );
+  const [logging, setLogging] = useState<{
+    habit: Habit;
+    date: string;
+    focusReflection?: boolean;
+  } | null>(null);
   const [deleting, setDeleting] = useState<Habit | null>(null);
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState<Backup | null>(null);
@@ -227,9 +230,9 @@ export default function Home() {
     () =>
       registerHabitTools({
         getSnapshot: () => snapshotRef.current,
-        save: async (habitId, date, value) => {
+        save: async (habitId, date, value, note) => {
           const ok = await mutate(
-            () => db.saveEntry(habitId, date, value),
+            () => db.saveEntry(habitId, date, value, note),
             'Check-in saved on this device.',
           );
           if (!ok)
@@ -796,6 +799,30 @@ export default function Home() {
                           {entry ? 'Update' : 'Check in'}
                         </button>
                       </div>
+                      {entry && (
+                        <button
+                          type="button"
+                          className={`habit-reflection ${entry.note ? 'has-note' : ''}`}
+                          disabled={busy}
+                          aria-label={`${entry.note ? 'Read or edit' : 'Add'} reflection for ${h.name}`}
+                          onClick={() =>
+                            setLogging({
+                              habit: h,
+                              date,
+                              focusReflection: true,
+                            })
+                          }
+                        >
+                          <MessageSquareText size={15} />
+                          <span>
+                            {entry.note ||
+                              (done
+                                ? 'Add a closing note'
+                                : 'Add a reflection')}
+                          </span>
+                          {entry.note && <Pencil size={13} />}
+                        </button>
+                      )}
                     </article>
                   );
                 })}
@@ -963,7 +990,8 @@ export default function Home() {
                 <h3>Take your progress with you.</h3>
                 <p>
                   JSON is a full backup you can restore in Streakfreak. CSV
-                  opens in your favorite spreadsheet.
+                  includes daily amounts, goals, and reflections for your
+                  reports.
                 </p>
                 <div className="export-options">
                   <button
@@ -974,7 +1002,7 @@ export default function Home() {
                     <span className="file-type">{`{ }`}</span>
                     <span>
                       <b>JSON backup</b>
-                      <small>All habits, goals, and daily entries</small>
+                      <small>Habits, check-ins, and reflections</small>
                     </span>
                     <Download size={18} />
                   </button>
@@ -986,7 +1014,7 @@ export default function Home() {
                     <span className="file-type">CSV</span>
                     <span>
                       <b>CSV spreadsheet</b>
-                      <small>A row for every check-in</small>
+                      <small>Daily progress and reflection notes</small>
                     </span>
                     <Download size={18} />
                   </button>
@@ -1150,10 +1178,11 @@ export default function Home() {
           date={logging.date}
           entry={map.get(entryKey(logging.habit.id, logging.date))}
           busy={busy}
+          focusReflection={logging.focusReflection}
           onClose={() => setLogging(null)}
-          onSave={(value) =>
+          onSave={(value, note) =>
             mutate(
-              () => db.saveEntry(logging.habit.id, logging.date, value),
+              () => db.saveEntry(logging.habit.id, logging.date, value, note),
               'Check-in saved. A little progress, all yours.',
             )
           }
@@ -1222,7 +1251,7 @@ export default function Home() {
               <span className="file-type">{`{ }`}</span>
               <span>
                 <b>JSON backup</b>
-                <small>Complete backup. Ready to restore.</small>
+                <small>Check-ins and reflections. Ready to restore.</small>
               </span>
               <Download size={19} />
             </button>

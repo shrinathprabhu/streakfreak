@@ -29,6 +29,17 @@ export interface Entry {
   target: number;
   direction: Direction;
   updatedAt: string;
+  /** Optional for entries and backups created before reflections were added. */
+  note?: string;
+}
+export const MAX_NOTE_LENGTH = 2000;
+
+export function validateNote(value: unknown): string {
+  if (typeof value !== 'string' || value.length > MAX_NOTE_LENGTH)
+    throw new Error(
+      `Keep your reflection to ${MAX_NOTE_LENGTH.toLocaleString('en-US')} characters or fewer.`,
+    );
+  return value.trim();
 }
 export interface Snapshot {
   habits: Habit[];
@@ -324,6 +335,7 @@ export function validateBackup(raw: unknown, today = localDate()): Backup {
       target: e.target,
       direction: e.direction,
       updatedAt: e.updatedAt,
+      ...(e.note === undefined ? {} : { note: validateNote(e.note) }),
     };
   });
   return {
@@ -352,6 +364,7 @@ export function toCSV(snapshot: Snapshot): string {
       'direction',
       'completed',
       'start_date',
+      'note',
     ],
   ];
   for (const h of snapshot.habits) {
@@ -370,6 +383,7 @@ export function toCSV(snapshot: Snapshot): string {
         h.direction,
         '',
         h.startDate,
+        '',
       ]);
     for (const e of entries)
       rows.push([
@@ -383,6 +397,7 @@ export function toCSV(snapshot: Snapshot): string {
         e.direction,
         complete(e),
         h.startDate,
+        e.note ?? '',
       ]);
   }
   return '\uFEFF' + rows.map((row) => row.map(cell).join(',')).join('\r\n');

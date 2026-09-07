@@ -13,6 +13,7 @@ import {
   shiftDate,
   streaks,
   toCSV,
+  MAX_NOTE_LENGTH,
   validDate,
   validateBackup,
   validateHabit,
@@ -209,4 +210,79 @@ await test('CSV retains habits with no entries', () => {
   const csv = toCSV({ habits: [habit], entries: [] });
   assert.ok(csv.includes('"Stay hydrated"'));
   assert.equal(csv.split('\r\n').length, 2);
+});
+
+await test('reflections survive JSON backup round trips with paragraphs and Unicode', () => {
+  const note =
+    'Finished the chapter — finally! 📖\nOutcome: clearer notes, fewer distractions.';
+  const snapshot = {
+    habits: [habit],
+    entries: [entry('2026-09-07', 8, { note })],
+  };
+  const restored = validateBackup(
+    JSON.parse(JSON.stringify(createBackup(snapshot))),
+    '2026-09-07',
+  );
+  assert.equal(restored.entries[0].note, note);
+  assert.equal(complete(restored.entries[0]), true);
+});
+
+await test('legacy backups without notes remain valid and preserve the omitted field', () => {
+  const backup = createBackup({
+    habits: [habit],
+    entries: [entry('2026-09-07')],
+  });
+  assert.equal(validateBackup(backup, '2026-09-07').entries[0].note, undefined);
+});
+
+await test('backup reflection validation accepts the limit and rejects malformed or oversized notes', () => {
+  const backup = createBackup({
+    habits: [habit],
+    entries: [entry('2026-09-07')],
+  });
+  const withNote = (note: unknown) => ({
+    ...backup,
+    entries: [{ ...backup.entries[0], note }],
+  });
+  assert.equal(
+    validateBackup(withNote('a'.repeat(MAX_NOTE_LENGTH)), '2026-09-07')
+      .entries[0].note?.length,
+    MAX_NOTE_LENGTH,
+  );
+  for (const note of [
+    null,
+    42,
+    {},
+    ['note'],
+    'a'.repeat(MAX_NOTE_LENGTH + 1),
+  ]) {
+    assert.throws(() => validateBackup(withNote(note), '2026-09-07'));
+  }
+  assert.equal(
+    validateBackup(withNote('  '), '2026-09-07').entries[0].note,
+    '',
+  );
+});
+
+await test('CSV includes reflections with quotes, newlines, and formula escaping', () => {
+  const note =
+    'Achieved "eight glasses", feeling good.\nNext: keep a bottle nearby.';
+  const csv = toCSV({
+    habits: [habit],
+    entries: [entry('2026-09-07', 8, { note })],
+  });
+  assert.ok(csv.split('\r\n')[0].endsWith(',"note"'));
+  assert.ok(
+    csv.endsWith(
+      '"Achieved ""eight glasses"", feeling good.\nNext: keep a bottle nearby."',
+    ),
+  );
+  const formula = toCSV({
+    habits: [habit],
+    entries: [entry('2026-09-07', 8, { note: '=HYPERLINK("example")' })],
+  });
+  assert.ok(formula.endsWith('"\'=HYPERLINK(""example"")"'));
+  const empty = toCSV({ habits: [habit], entries: [] });
+  assert.equal(empty.split('\r\n')[0].split(',').length, 11);
+  assert.ok(empty.endsWith(',""'));
 });

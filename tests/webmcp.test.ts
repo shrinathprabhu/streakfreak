@@ -39,7 +39,29 @@ await test('optional tool contract shares validated app actions and cleans up', 
     value: 8,
   })) as { saved: boolean };
   assert.equal(result.saved, true);
-  assert.deepEqual(saved, ['water', localDate(), 8]);
+  assert.deepEqual(saved, ['water', localDate(), 8, undefined]);
+  await registered[1].execute({
+    habitId: 'water',
+    date: localDate(),
+    value: 8,
+    note: 'Goal met. Feeling focused.',
+  });
+  assert.deepEqual(saved, [
+    'water',
+    localDate(),
+    8,
+    'Goal met. Feeling focused.',
+  ]);
+  await assert.rejects(
+    Promise.resolve(
+      registered[1].execute({
+        habitId: 'water',
+        date: localDate(),
+        value: 8,
+        note: 'a'.repeat(2001),
+      }),
+    ),
+  );
   await assert.rejects(
     Promise.resolve(
       registered[1].execute({ habitId: 'water', date: localDate(), value: -1 }),

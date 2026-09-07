@@ -17,6 +17,7 @@ import {
   localDate,
   PRESETS,
   shiftDate,
+  MAX_NOTE_LENGTH,
   type Habit,
 } from '../lib/habits.ts';
 const today = localDate();
@@ -61,6 +62,64 @@ await test('IndexedDB lifecycle is durable and safe', async (t) => {
     },
   );
   await t.test(
+    'reflections persist, survive amount-only edits, and can be cleared explicitly',
+    async () => {
+      const note = 'Finished my walk.\nOutcome: a clearer head.';
+      await saveEntry(habit.id, today, 9, note);
+      assert.equal(
+        (await readSnapshot()).entries.find(
+          (e) => e.id === entryKey(habit.id, today),
+        )?.note,
+        note,
+      );
+      await saveEntry(habit.id, today, 10);
+      const changed = (await readSnapshot()).entries.find(
+        (e) => e.id === entryKey(habit.id, today),
+      );
+      assert.equal(changed?.note, note);
+      assert.equal(changed?.target, 8);
+      await saveEntry(habit.id, today, 10, '');
+      const cleared = (await readSnapshot()).entries.find(
+        (e) => e.id === entryKey(habit.id, today),
+      );
+      assert.equal(cleared?.note, '');
+      assert.equal(cleared?.value, 10);
+    },
+  );
+  await t.test(
+    'legacy imports preserve reflections while explicit imported notes replace them',
+    async () => {
+      await saveEntry(habit.id, today, 10, 'Keep this outcome.');
+      const saved = (await readSnapshot()).entries.find(
+        (e) => e.id === entryKey(habit.id, today),
+      )!;
+      const legacy = { ...saved };
+      delete legacy.note;
+      await mergeBackup(createBackup({ habits: [habit], entries: [legacy] }));
+      assert.equal(
+        (await readSnapshot()).entries.find((e) => e.id === legacy.id)?.note,
+        'Keep this outcome.',
+      );
+      await mergeBackup(
+        createBackup({
+          habits: [habit],
+          entries: [{ ...legacy, note: 'Imported reflection.' }],
+        }),
+      );
+      assert.equal(
+        (await readSnapshot()).entries.find((e) => e.id === legacy.id)?.note,
+        'Imported reflection.',
+      );
+      await mergeBackup(
+        createBackup({ habits: [habit], entries: [{ ...legacy, note: '' }] }),
+      );
+      assert.equal(
+        (await readSnapshot()).entries.find((e) => e.id === legacy.id)?.note,
+        '',
+      );
+    },
+  );
+  await t.test(
     'invalid writes reject without changing stored data',
     async () => {
       const before = await readSnapshot();
@@ -68,6 +127,9 @@ await test('IndexedDB lifecycle is durable and safe', async (t) => {
       await assert.rejects(saveEntry(habit.id, '2026-02-30', 4));
       await assert.rejects(saveEntry(habit.id, shiftDate(today, 1), 4));
       await assert.rejects(saveEntry('missing', today, 4));
+      await assert.rejects(
+        saveEntry(habit.id, today, 4, 'a'.repeat(MAX_NOTE_LENGTH + 1)),
+      );
       assert.deepEqual(await readSnapshot(), before);
     },
   );

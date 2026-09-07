@@ -4,6 +4,7 @@ import {
   validDate,
   PRESETS,
   validateHabit,
+  validateNote,
   type Backup,
   type Entry,
   type Habit,
@@ -121,9 +122,12 @@ export async function saveEntry(
   habitId: string,
   date: string,
   value: number,
+  note?: string,
 ): Promise<void> {
   if (!Number.isFinite(value) || value < 0 || value > 1000000)
     throw new Error('Enter a number between 0 and 1,000,000.');
+  // An omitted note preserves the existing reflection; an empty string clears it.
+  const validatedNote = note === undefined ? undefined : validateNote(note);
   const db = await openDatabase();
   const tx = db.transaction(['habits', 'entries'], 'readwrite');
   const done = transactionDone(tx);
@@ -148,6 +152,7 @@ export async function saveEntry(
         target: prior?.target ?? h.target,
         direction: prior?.direction ?? h.direction,
         updatedAt: new Date().toISOString(),
+        note: validatedNote ?? prior?.note ?? '',
       } satisfies Entry);
     };
   };
@@ -202,7 +207,18 @@ export async function mergeBackup(backup: Backup): Promise<void> {
       });
     };
   }
-  for (const e of backup.entries) tx.objectStore('entries').put(e);
+  for (const e of backup.entries) {
+    if (e.note !== undefined) {
+      tx.objectStore('entries').put(e);
+    } else {
+      // Older backups have no note field and should not erase newer reflections.
+      const request = tx.objectStore('entries').get(e.id);
+      request.onsuccess = () => {
+        const prior = request.result as Entry | undefined;
+        tx.objectStore('entries').put({ ...e, note: prior?.note ?? '' });
+      };
+    }
+  }
   tx.objectStore('meta').put(true, 'initialized');
   await done;
 }

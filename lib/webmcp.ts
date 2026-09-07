@@ -1,4 +1,10 @@
-import { localDate, validDate, type Snapshot } from './habits.ts';
+import {
+  localDate,
+  validDate,
+  validateNote,
+  MAX_NOTE_LENGTH,
+  type Snapshot,
+} from './habits.ts';
 export interface Tool {
   name: string;
   title: string;
@@ -15,7 +21,12 @@ interface ModelContext {
 }
 export function registerHabitTools(actions: {
   getSnapshot: () => Snapshot;
-  save: (habitId: string, date: string, value: number) => Promise<void>;
+  save: (
+    habitId: string,
+    date: string,
+    value: number,
+    note?: string,
+  ) => Promise<void>;
 }) {
   const context = (document as Document & { modelContext?: ModelContext })
     .modelContext;
@@ -39,7 +50,7 @@ export function registerHabitTools(actions: {
       name: 'save_habit_check_in',
       title: 'Save a habit check-in',
       description:
-        'Record or update one daily habit amount on this device, using the same action as the check-in form. Dates must be today or earlier and on or after the habit start date.',
+        'Record or update one daily habit amount and an optional reflection on this device, using the same action as the check-in form. Omit note to keep an existing reflection; pass an empty string to clear it. Dates must be today or earlier and on or after the habit start date.',
       inputSchema: {
         type: 'object',
         properties: {
@@ -49,6 +60,11 @@ export function registerHabitTools(actions: {
             description: 'Local calendar date YYYY-MM-DD',
           },
           value: { type: 'number', minimum: 0, maximum: 1000000 },
+          note: {
+            type: 'string',
+            maxLength: MAX_NOTE_LENGTH,
+            description: 'Optional reflection about achievements or outcomes.',
+          },
         },
         required: ['habitId', 'date', 'value'],
         additionalProperties: false,
@@ -57,7 +73,7 @@ export function registerHabitTools(actions: {
       async execute(input) {
         if (!input || typeof input !== 'object')
           throw new Error('Provide habitId, date, and value.');
-        const { habitId, date, value } = input as Record<string, unknown>;
+        const { habitId, date, value, note } = input as Record<string, unknown>;
         const habit = actions
           .getSnapshot()
           .habits.find((h) => h.id === habitId);
@@ -72,7 +88,8 @@ export function registerHabitTools(actions: {
           value > 1000000
         )
           throw new Error('Invalid habit, date, or amount.');
-        await actions.save(habit.id, date, value);
+        const reflection = note === undefined ? undefined : validateNote(note);
+        await actions.save(habit.id, date, value, reflection);
         return { habitId: habit.id, date, value, saved: true };
       },
     },
