@@ -7,6 +7,9 @@ export const metadata: Metadata = {
     'Your private, local-only habit tracker. Build daily habits, watch your streaks grow, and take your data anywhere. No login, no subscriptions.',
   alternates: { canonical: 'https://lowkey.tools/streakfreak' },
   applicationName: 'Streakfreak',
+  authors: [{ name: 'Shrinath Prabhu', url: 'https://shrinath.me' }],
+  creator: 'Shrinath Prabhu',
+  publisher: 'OwlEye Analytics',
   manifest: `${base}/manifest.webmanifest`,
   icons: {
     icon: [{ url: `${base}/favicon.svg`, type: 'image/svg+xml' }],

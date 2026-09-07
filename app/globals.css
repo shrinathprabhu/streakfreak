@@ -652,6 +652,8 @@ h2 {
 footer {
   display: flex;
   justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
   gap: 15px;
   margin-top: 35px;
   padding: 20px 0 28px;
@@ -668,6 +670,28 @@ footer > a {
 footer b {
   font-weight: 600;
   color: #6e675c;
+}
+.maker-credit {
+  margin-left: auto;
+  text-align: right;
+  line-height: 1.8;
+}
+.maker-credit p {
+  margin: 0 0 4px;
+}
+.maker-credit p a {
+  font-weight: 600;
+  color: #6e675c;
+}
+.maker-credit a:hover {
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.maker-credit .more-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 @media (min-width: 1600px) {
   .workspace {
@@ -911,6 +935,10 @@ footer b {
     align-items: center;
     margin-top: 26px;
     gap: 13px;
+  }
+  .maker-credit {
+    margin-left: 0;
+    text-align: center;
   }
 }
 @media (prefers-reduced-motion: reduce) {

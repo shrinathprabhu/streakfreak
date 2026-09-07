@@ -1084,13 +1084,36 @@ export default function Home() {
             <LockKeyhole size={14} /> Just you and your progress. Stored on this
             device.
           </span>
-          <a
-            href="https://lowkey.tools"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            A little tool by <b>lowkey.tools</b> <ArrowUpRight size={13} />
-          </a>
+          <div className="maker-credit">
+            <p>
+              Built by{' '}
+              <a
+                href="https://shrinath.me"
+                target="_blank"
+                rel="author noopener noreferrer"
+              >
+                Shrinath
+              </a>
+              . From the makers of{' '}
+              <a
+                href="https://owleye.dev"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                OwlEye Analytics
+              </a>
+              .
+            </p>
+            <a
+              className="more-tools"
+              href="https://lowkey.tools"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              More little tools at <b>lowkey.tools</b>{' '}
+              <ArrowUpRight size={13} />
+            </a>
+          </div>
         </footer>
       </main>
       <input
