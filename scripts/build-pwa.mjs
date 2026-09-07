@@ -1,9 +1,21 @@
 import { readdir, readFile, writeFile } from 'node:fs/promises';
 import { join, relative } from 'node:path';
 import { createHash } from 'node:crypto';
+import { buildDiscovery } from './build-discovery.mjs';
 const output = join(process.cwd(), 'dist/client');
 const base = process.env.NEXT_PUBLIC_BASE_PATH || '';
 const prefix = `${base}/`;
+const scope = base || '/';
+await buildDiscovery(output);
+const manifestPath = join(output, 'manifest.webmanifest');
+const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+if (base) {
+  // Cover the exact, slashless canonical entry URL as well as app assets.
+  manifest.id = base;
+  manifest.start_url = base;
+  manifest.scope = base;
+}
+await writeFile(manifestPath, JSON.stringify(manifest, null, 2) + '\n');
 async function files(dir) {
   const results = [];
   for (const e of await readdir(dir, { withFileTypes: true })) {
@@ -16,8 +28,10 @@ async function files(dir) {
 const paths = (await files(output))
   .filter(
     (p) =>
-      /\.(js|css|woff2?|png|svg|webmanifest|html|rsc|json)$/.test(p) &&
-      !relative(output, p).split('/').some((part) => part.startsWith('.')) &&
+      /\.(js|css|woff2?|png|svg|webmanifest|html|rsc|json|txt|xml)$/.test(p) &&
+      !relative(output, p)
+        .split('/')
+        .some((part) => part.startsWith('.')) &&
       !p.endsWith('/sw.js'),
   )
   .sort();
@@ -39,13 +53,18 @@ const hash = createHash('sha256');
 for (const p of paths) hash.update(await readFile(p));
 const version = hash.digest('hex').slice(0, 16);
 const assets = [
-  prefix,
-  ...paths.map((p) => `${prefix}${relative(output, p).split('\\').join('/')}`),
+  scope,
+  // Cache the 200 entry URL once. Redirected index/slash aliases are unsuitable
+  // offline navigation responses and would download the same HTML twice.
+  ...paths
+    .filter((p) => relative(output, p) !== 'index.html')
+    .map((p) => `${prefix}${relative(output, p).split('\\').join('/')}`),
 ];
 const worker = `/* Generated from the exact static build. No habit data enters this cache. */
 const PREFIX=${JSON.stringify(`streakfreak-shell-${base || 'root'}-`)};
 const CACHE=PREFIX+${JSON.stringify(version)};
 const HOME=${JSON.stringify(prefix)};
+const ENTRY=${JSON.stringify(scope)};
 const ASSETS=${JSON.stringify(assets)};
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)));
@@ -56,15 +75,17 @@ self.addEventListener('activate',event=>{
 self.addEventListener('fetch',event=>{
   const request=event.request;
   const url=new URL(request.url);
-  if(request.method!=='GET'||url.origin!==self.location.origin||!url.pathname.startsWith(HOME))return;
+  if(request.method!=='GET'||url.origin!==self.location.origin||(url.pathname!==ENTRY&&!url.pathname.startsWith(HOME)))return;
   if(request.mode==='navigate'){
+    // Unknown routes must keep their real HTTP status, including 404s.
+    if(![ENTRY,HOME,HOME+'index.html'].includes(url.pathname))return;
     event.respondWith((async()=>{
       const cache=await caches.open(CACHE);
       try {
         const response=await fetch(request);
         if(response.ok&&!response.redirected&&(response.headers.get('content-type')||'').includes('text/html'))return response;
       } catch {}
-      return (await cache.match(HOME)) || new Response('Open Streakfreak online once to enable offline use.',{status:503,headers:{'Content-Type':'text/plain'}});
+      return (await cache.match(ENTRY)) || new Response('Open Streakfreak online once to enable offline use.',{status:503,headers:{'Content-Type':'text/plain'}});
     })());
     return;
   }
@@ -74,7 +95,7 @@ self.addEventListener('fetch',event=>{
 await writeFile(join(output, 'sw.js'), worker);
 await writeFile(
   join(output, '_headers'),
-  `${prefix}sw.js\n  Cache-Control: no-cache\n  Service-Worker-Allowed: ${prefix}\n${prefix}index.html\n  Cache-Control: no-cache\n${prefix}manifest.webmanifest\n  Cache-Control: no-cache\n/*\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: no-referrer\n  Permissions-Policy: camera=(), microphone=(), geolocation=()\n`,
+  `${scope}\n  Cache-Control: no-cache\n${prefix}sw.js\n  Cache-Control: no-cache\n  Service-Worker-Allowed: ${scope}\n${prefix}index.html\n  Cache-Control: no-cache\n${prefix}manifest.webmanifest\n  Cache-Control: no-cache\n${prefix}_next/static/*\n  Cache-Control: public, max-age=31536000, immutable\n${prefix}sitemap.xml\n  Content-Type: application/xml; charset=utf-8\n  Cache-Control: public, max-age=3600\n${prefix}robots.txt\n  Content-Type: text/plain; charset=utf-8\n  Cache-Control: public, max-age=3600\n${prefix}llms.txt\n  Content-Type: text/plain; charset=utf-8\n  Cache-Control: public, max-age=3600\n/*\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: no-referrer\n  Permissions-Policy: camera=(), microphone=(), geolocation=()\n`,
 );
 console.log(
   `Offline shell ready: ${assets.length} assets, scope ${prefix}, version ${version}.`,

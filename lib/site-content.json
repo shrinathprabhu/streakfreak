@@ -1,0 +1,54 @@
+{
+  "name": "Streakfreak",
+  "canonical": "https://lowkey.tools/streakfreak",
+  "title": "Streakfreak — Free, Private Habit Tracker & Streak Calendar",
+  "description": "Track habits with a yearly heatmap, daily goals and outcome notes. Free, offline-ready habit tracker with JSON/CSV export. No login, subscriptions or cloud sync.",
+  "summary": "Streakfreak is a free, local-only habit and streak tracker by Shrinath Prabhu, from the makers of OwlEye Analytics. Track daily goals, see a full-year heatmap calendar, and save reflections about what you achieved. Your habits stay in this browser, with no account or subscription.",
+  "features": [
+    "Yearly heatmap calendar with habit filters and past-day check-ins",
+    "Current and best streaks based on local calendar dates",
+    "Editable water, steps, sleep, screen-time, reading, meditation, workout and journaling templates",
+    "Custom habits with minimum goals or maximum limits",
+    "Optional daily reflections and outcome notes",
+    "JSON backup and restore, plus CSV export including reflections",
+    "Installable PWA with offline use after the app shell is cached",
+    "Local IndexedDB storage with no account, analytics or cloud sync"
+  ],
+  "faqs": [
+    {
+      "id": "free-habit-tracker",
+      "question": "Is Streakfreak free, and do I need an account?",
+      "answer": "Streakfreak is free to use. There is no login, subscription or paid template tier. Open it in a supported browser and start tracking your habits."
+    },
+    {
+      "id": "habit-data-privacy",
+      "question": "Where are my habits and reflections stored?",
+      "answer": "Habits, check-ins and reflections are stored in IndexedDB on this browser. Streakfreak does not upload them or run analytics. The web host still receives normal requests for app files. Data is not encrypted by Streakfreak, so anyone with access to this browser profile can view it."
+    },
+    {
+      "id": "offline-habit-tracker",
+      "question": "Does Streakfreak work offline and on mobile?",
+      "answer": "Yes. Open Streakfreak online once and wait for the offline-ready status before using it without a connection. The responsive app works on phones, tablets and desktops. Where supported, install it from the browser menu or use Add to Home Screen on iPhone and iPad."
+    },
+    {
+      "id": "habit-templates",
+      "question": "Which habit templates are included?",
+      "answer": "Start with water, steps, sleep or screen-time, or choose reading, meditation, workouts or journaling. Every template is an editable preset using the same local storage format. Change the goal, unit, icon and color, or create a custom habit. Values are logged manually; the app does not read device sensors or health accounts."
+    },
+    {
+      "id": "streak-rules",
+      "question": "How do streaks and the heatmap work?",
+      "answer": "A habit streak counts consecutive local calendar days when its goal was met. The journal streak counts days when at least one goal was met. An unfinished today keeps yesterday’s streak alive; a missed earlier day breaks the current streak. Heatmap intensity shows the share of due goals completed. Maximum limits require an explicit check-in, including zero."
+    },
+    {
+      "id": "export-habit-report",
+      "question": "Can I add an outcome note and export a habit report?",
+      "answer": "Yes. Open a check-in or choose Add a closing note after completing a goal to save what you achieved, how it felt or what happened. Notes can be up to 2,000 characters. Export CSV for spreadsheet reports with dates, amounts, goals, completion status and notes. Export JSON for a complete backup that can be restored in Streakfreak. A formatted report document is not generated automatically."
+    },
+    {
+      "id": "back-up-habits",
+      "question": "Will my data sync or survive clearing my browser?",
+      "answer": "There is no automatic sync. Export a JSON backup and import it on another device, browser or domain to transfer your journal. Clearing site data, private browsing or browser storage eviction can remove your habits. Keep regular backups; persistent storage helps where supported but does not replace a backup."
+    }
+  ]
+}

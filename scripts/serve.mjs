@@ -14,16 +14,19 @@ const types = {
   '.png': 'image/png',
   '.rsc': 'text/x-component',
   '.woff2': 'font/woff2',
+  '.txt': 'text/plain; charset=utf-8',
+  '.xml': 'application/xml; charset=utf-8',
 };
 createServer(async (req, res) => {
   try {
     const url = new URL(req.url, 'http://localhost');
-    if (base && url.pathname === base) {
-      res.writeHead(308, { Location: base + '/' });
+    if (base && url.pathname === base + '/') {
+      res.writeHead(308, { Location: base + url.search });
       res.end();
       return;
     }
-    if (!url.pathname.startsWith(base + '/')) throw new Error('Not found');
+    if (url.pathname !== base && !url.pathname.startsWith(base + '/'))
+      throw new Error('Not found');
     let path = resolve(
       root,
       '.' + decodeURIComponent(url.pathname.slice(base.length)),
@@ -36,6 +39,9 @@ createServer(async (req, res) => {
       'Content-Type': types[extname(path)] || 'application/octet-stream',
       'Cache-Control': 'no-cache',
       'X-Content-Type-Options': 'nosniff',
+      ...(extname(path) === '.js' && path.endsWith('/sw.js')
+        ? { 'Service-Worker-Allowed': base || '/' }
+        : {}),
     });
     res.end(data);
   } catch {

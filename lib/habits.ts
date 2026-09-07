@@ -177,6 +177,15 @@ export function entryKey(habitId: string, date: string): string {
 export function entryMap(entries: Entry[]): Map<string, Entry> {
   return new Map(entries.map((e) => [e.id, e]));
 }
+export function entriesByHabit(entries: Entry[]): Map<string, Entry[]> {
+  const grouped = new Map<string, Entry[]>();
+  for (const entry of entries) {
+    const group = grouped.get(entry.habitId);
+    if (group) group.push(entry);
+    else grouped.set(entry.habitId, [entry]);
+  }
+  return grouped;
+}
 export function streaks(
   dates: string[],
   today: string,
@@ -240,8 +249,11 @@ export function daySummary(
         : Math.max(1, Math.ceil((done / Math.max(due.length, 1)) * 4)),
   };
 }
+const amountFormatter = new Intl.NumberFormat('en-US', {
+  maximumFractionDigits: 2,
+});
 export function formatAmount(value: number): string {
-  return value.toLocaleString('en-US', { maximumFractionDigits: 2 });
+  return amountFormatter.format(value);
 }
 export function createBackup(snapshot: Snapshot): Backup {
   return {
@@ -367,10 +379,11 @@ export function toCSV(snapshot: Snapshot): string {
       'note',
     ],
   ];
+  const grouped = entriesByHabit(snapshot.entries);
   for (const h of snapshot.habits) {
-    const entries = snapshot.entries
-      .filter((e) => e.habitId === h.id)
-      .sort((a, b) => a.date.localeCompare(b.date));
+    const entries = (grouped.get(h.id) ?? []).sort((a, b) =>
+      a.date.localeCompare(b.date),
+    );
     if (!entries.length)
       rows.push([
         h.id,

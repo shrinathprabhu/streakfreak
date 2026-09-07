@@ -38,11 +38,11 @@ Serve `dist/client/` on any HTTPS static host. `npm start` is only a local stati
 
 IndexedDB database `streakfreak`, version 1:
 
-| Store | Key | Contents |
-| --- | --- | --- |
-| `habits` | `id` | name, description, unit, target, direction, icon, color, startDate |
+| Store     | Key                  | Contents                                                                                  |
+| --------- | -------------------- | ----------------------------------------------------------------------------------------- |
+| `habits`  | `id`                 | name, description, unit, target, direction, icon, color, startDate                        |
 | `entries` | `habitId:YYYY-MM-DD` | habitId, local date, value, target snapshot, direction snapshot, updatedAt, optional note |
-| `meta` | string | idempotent initialization flag |
+| `meta`    | string               | idempotent initialization flag                                                            |
 
 `direction` is `atLeast` or `atMost`. An absent entry never completes a goal, even for a maximum limit. An explicitly logged zero can complete a limit. Habit targets are user-defined presets, not health recommendations.
 
@@ -75,9 +75,30 @@ NEXT_PUBLIC_BASE_PATH=/streakfreak npm run build
 NEXT_PUBLIC_BASE_PATH=/streakfreak npm start
 ```
 
-Mount `dist/client/` at `/streakfreak/` and redirect `/streakfreak` to `/streakfreak/`. The build uses that prefix for assets, manifest links, service-worker URL/scope, and the home link. The manifest’s relative URLs keep installation within the correct scope. Serve JavaScript with its proper MIME type and `sw.js` without a long-lived immutable cache. Cloudflare-compatible headers are emitted in `_headers`; configure equivalent headers on other hosts.
+Mount `dist/client/` at `/streakfreak/` and **serve its index at `/streakfreak` with HTTP 200**. Redirect `/streakfreak/` and `/streakfreak/index.html` to that exact canonical entry URL at the production host. Do not redirect the canonical URL to the trailing-slash alias. The local preview implements the slash redirect and canonical 200 response. App assets retain the `/streakfreak/` prefix.
+
+The subpath build gives the manifest an explicit `/streakfreak` ID, start URL and scope. The worker registers at the same scope with `Service-Worker-Allowed: /streakfreak`, covering the exact canonical page. Browser scopes use prefix matching, so the worker also checks path boundaries and never intercepts sibling applications or unknown page routes. Configure the emitted `Service-Worker-Allowed` header when deploying; do not deploy a conflicting app under a `/streakfreak...` prefix. Root builds retain the portable `./` manifest values.
+
+Serve JavaScript with its proper MIME type and `sw.js` without a long-lived immutable cache. Cloudflare-compatible headers are emitted in `_headers`; configure equivalent headers on other hosts. Hashed framework assets can be cached for a year; HTML and the worker must revalidate. Enable the host’s Brotli/gzip compression.
 
 Custom DNS and the existing `lowkey.tools` deployment are external configuration. A private Sites preview is separate from the no-login application and does not connect those domains automatically.
+
+## Search, answer engines and attribution
+
+`lib/site-content.json` is the shared source for the title, description, public product facts and FAQs. `app/page.tsx` renders the guide and JSON-LD on the server, passing the guide as children to the client tracker. This keeps the guide implementation out of the client JavaScript while making all answers and creator links readable in the initial HTML. No personal records enter generated HTML or discovery files.
+
+- Canonical, Open Graph and Twitter URLs consistently identify `https://lowkey.tools/streakfreak`. Social cards use the existing 512px app icon, which must be served from the canonical host.
+- JSON-LD describes the WebApplication, WebPage, FAQPage, Lowkey Tools website, Shrinath Prabhu and OwlEye Analytics, with stable entity IDs matching the other Lowkey Tools sites. FAQ answers match visible copy. No ratings, endorsements or reviews are invented.
+- OwlEye and Shrinath have visible contextual links, dedicated maker cards, footer credits and linked structured attribution. These are normal followed links without tracking parameters.
+- `scripts/build-discovery.mjs` generates `sitemap.xml`, `robots.txt` and `llms.txt` in `dist/client/` on every build. The sitemap lists only the canonical page; UI tabs, local history and aliases are not indexable pages. No speculative `lastmod`, `priority` or `changefreq` values are emitted.
+- The wildcard robots rule allows compliant search and answer-engine crawlers to read public app information. IndexedDB records are not HTTP endpoints. `llms.txt` provides an optional product summary and official maker links; it is not an access control or a guaranteed indexing mechanism.
+- The document has an English language tag, one H1, labeled navigation, a main landmark, a top-level footer, a skip link and a structured H2/H3 guide. Mobile uses the same public content and metadata. Narrow screens get single-column habit/template cards, large touch controls, scrollable heatmaps and readable form fields; zoom remains enabled.
+
+For the **canonical production deployment**, the host must serve the canonical page and assets publicly over HTTPS, merge `Sitemap: https://lowkey.tools/streakfreak/sitemap.xml` into the existing **`https://lowkey.tools/robots.txt`**, and add the canonical URL to the hub’s root sitemap (or submit the app sitemap in a verified Search Console property). A robots file inside `/streakfreak/` does not control crawling of the origin. Link the app’s `/streakfreak/llms.txt` from the hub’s existing root `/llms.txt`; do not overwrite files used by the other tools. Prefer a permanent redirect from `streakfreak.lowkey.tools` to the canonical URL once users have exported any origin-specific data. Missing URLs must return 404, not the app shell.
+
+DNS, hub routing/root files, public access, Search Console submission, Rich Results validation and real-device Web Vitals still require verification on that production host. The private Sites publication is not crawlable by public search engines. Standard SEO supports Google’s generative search features; extra AI files or special markup are not required, and FAQ/app markup does not guarantee a rich result. References: [Google AI features guidance](https://developers.google.com/search/docs/appearance/ai-features), [canonicalization](https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls), [root robots placement](https://developers.google.com/crawling/docs/robots-txt/create-robots-txt), [llms.txt proposal](https://llmstxt.org/).
+
+History calculations group entries once per update, memoize habit streaks and heatmap summaries, and reuse `Intl` date/number formatters. CSV exports reuse the same history grouping. This avoids scanning an entire large journal once for every habit and recomputing calendar labels when opening a dialog or choosing a day. Run the synthetic, non-browser benchmark with `node --experimental-strip-types scripts/benchmark-history.mjs`; its timings do not represent Lighthouse or Core Web Vitals scores.
 
 ## Checks
 
@@ -86,9 +107,9 @@ npm run typecheck
 npm run lint
 npm test
 npm run build
-node --test tests/pwa.test.mjs
+node --test tests/pwa.test.mjs tests/discovery.test.mjs
 ```
 
-The tests exercise goal semantics, calendar/DST behavior, streak gaps, backup validation, CSV injection escaping, IndexedDB transactions, goal snapshot preservation, import merges, and cascading deletion. Production tests verify the precache files, canonical/manifest paths, cache cleanup isolation, offline fallback, and request filtering. Shadcn-generated files are excluded from the app’s lint scope; they are retained unmodified.
+The tests exercise goal semantics, calendar/DST behavior, streak gaps, grouped history, backup validation, CSV injection escaping, IndexedDB transactions, goal snapshot preservation, import merges, and cascading deletion. Production tests verify the precache files, canonical/manifest paths, cache cleanup isolation, exact-path offline fallback, request filtering, static semantic landmarks, matching FAQ/schema facts, social metadata, creator links and crawler files. Run production tests against both root and `NEXT_PUBLIC_BASE_PATH=/streakfreak` builds. Shadcn-generated files are excluded from the app’s lint scope; they are retained unmodified.
 
 Optional WebMCP tools (`read_habit_progress`, `save_habit_check_in`) use the same local actions and are only registered if the browser provides `document.modelContext`. Their adapter contract is unit-tested; a live supported WebMCP browser was not available for integration verification. No browser interaction, visual, or device installation testing has been performed in this task.

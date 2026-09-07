@@ -35,7 +35,7 @@ export function usePWA() {
     if (process.env.NODE_ENV === 'production' && 'serviceWorker' in navigator) {
       const base = process.env.NEXT_PUBLIC_BASE_PATH || '';
       void navigator.serviceWorker
-        .register(`${base}/sw.js`, { scope: `${base}/` })
+        .register(`${base}/sw.js`, { scope: base || '/' })
         .then(() => navigator.serviceWorker.ready)
         .then(() => setOfflineReady(true))
         .catch(() => setOfflineReady(false));

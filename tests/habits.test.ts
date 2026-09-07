@@ -7,6 +7,7 @@ import {
   daySummary,
   entryKey,
   entryMap,
+  entriesByHabit,
   habitStreak,
   localDate,
   PRESETS,
@@ -36,6 +37,35 @@ function entry(date: string, value = 8, overrides: Partial<Entry> = {}): Entry {
 }
 await test('local dates retain the local calendar day', () => {
   assert.equal(localDate(new Date(2026, 0, 2, 0, 1)), '2026-01-02');
+});
+await test('grouped history preserves per-habit streaks and does not mutate imported records', () => {
+  const other: Habit = { ...habit, id: 'other', startDate: '2026-01-02' };
+  const records = [
+    entry('2026-01-03'),
+    entry('2026-01-01'),
+    entry('2026-01-02', 3),
+    entry('2026-01-02', 8, {
+      id: entryKey('other', '2026-01-02'),
+      habitId: 'other',
+    }),
+    entry('2026-01-03', 8, {
+      id: entryKey('other', '2026-01-03'),
+      habitId: 'other',
+    }),
+  ];
+  const before = structuredClone(records);
+  const grouped = entriesByHabit(records);
+  for (const h of [habit, other])
+    assert.deepEqual(
+      habitStreak(h, grouped.get(h.id) ?? [], '2026-01-03'),
+      habitStreak(h, records, '2026-01-03'),
+    );
+  assert.deepEqual(habitStreak(other, grouped.get(other.id)!, '2026-01-03'), {
+    current: 2,
+    best: 2,
+  });
+  toCSV({ habits: [habit, other], entries: records });
+  assert.deepEqual(records, before);
 });
 await test('calendar arithmetic crosses leap days and year boundaries', () => {
   assert.equal(shiftDate('2024-02-28', 1), '2024-02-29');

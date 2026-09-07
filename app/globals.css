@@ -47,6 +47,8 @@ body {
   font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
   font-size: 16px;
   -webkit-font-smoothing: antialiased;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+    env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 button,
 input,
@@ -248,7 +250,10 @@ h1 > span {
 }
 .stats-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1.25fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(
+      0,
+      1.25fr
+    );
   gap: 17px;
   margin-bottom: 25px;
 }
@@ -1805,6 +1810,254 @@ footer b {
 }
 .error-toast {
   background: #913b2c;
+}
+.site-footer.workspace {
+  margin-top: 35px;
+  padding-top: 20px;
+  padding-bottom: 28px;
+}
+.product-guide {
+  margin-top: 64px;
+  border-top: 1px solid var(--border);
+  color: #6e675c;
+  line-height: 1.75;
+  overflow-wrap: anywhere;
+}
+.product-guide section {
+  padding: 44px 0;
+  scroll-margin-top: 24px;
+}
+.product-guide section + section {
+  border-top: 1px solid var(--border);
+}
+.product-guide h2 {
+  color: var(--foreground);
+  font-size: clamp(23px, 2.5vw, 30px);
+  line-height: 1.3;
+  letter-spacing: -0.8px;
+  margin: 10px 0 18px;
+}
+.product-guide h3 {
+  color: var(--foreground);
+  font-size: 16px;
+  line-height: 1.5;
+  margin: 0 0 8px;
+}
+.product-guide p {
+  margin: 0 0 16px;
+  font-size: 15px;
+}
+.product-guide .eyebrow {
+  font-size: 11px;
+}
+.product-guide a {
+  color: #a84316;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.about-section,
+.makers-section {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 64px;
+  align-items: center;
+}
+.guide-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  font-size: 14px;
+}
+.guide-links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+.feature-list {
+  padding-left: 22px;
+  margin: 0;
+  font-size: 14px;
+}
+.feature-list li {
+  padding-left: 6px;
+  margin: 10px 0;
+}
+.feature-list li::marker {
+  color: var(--primary);
+}
+.how-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 32px;
+  margin: 26px 0 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: steps;
+}
+.how-grid li::before {
+  counter-increment: steps;
+  content: '0' counter(steps);
+  display: block;
+  color: #a84316;
+  font-size: 13px;
+  font-weight: 650;
+  margin-bottom: 12px;
+}
+.faq-section {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: 48px;
+}
+.faq-list article + article {
+  border-top: 1px solid var(--border);
+  padding-top: 22px;
+  margin-top: 22px;
+}
+.faq-list article {
+  scroll-margin-top: 24px;
+}
+.maker-links {
+  display: grid;
+  gap: 12px;
+}
+.maker-links a {
+  display: grid;
+  gap: 5px;
+  padding: 20px 24px;
+  background: #fff;
+  border: 1px solid #e6dbce;
+  border-radius: 12px;
+  text-decoration: none;
+}
+.maker-links a:hover {
+  border-color: #a84316;
+}
+.maker-links a > span {
+  font-size: 10px;
+  letter-spacing: 1.3px;
+  color: #746b60;
+}
+.maker-links strong {
+  font-size: 17px;
+  font-weight: 600;
+}
+.maker-links small {
+  font-size: 13px;
+}
+.habit-card,
+.template-card,
+.stat,
+.page-heading > div {
+  min-width: 0;
+}
+.habit-value,
+.habit-description {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 700px) {
+  .about-section,
+  .makers-section,
+  .faq-section,
+  .how-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+  }
+  .product-guide {
+    margin-top: 40px;
+  }
+  .product-guide section {
+    padding: 30px 0;
+  }
+  .how-grid p,
+  .faq-list p {
+    margin-bottom: 0;
+  }
+  .field-label input,
+  .field-label .choice,
+  .date-input-label input {
+    font-size: 16px;
+  }
+  .habit-grid,
+  .template-grid,
+  .stats-grid,
+  .form-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 480px) {
+  .site-header {
+    gap: 12px;
+    padding-inline: 16px;
+  }
+  .local-badge {
+    display: none;
+  }
+  .workspace {
+    margin-inline: 16px;
+  }
+  .page-heading {
+    flex-wrap: wrap;
+  }
+  .page-heading .button {
+    margin-top: 0;
+  }
+  .view-nav .app-tab-list {
+    width: 100%;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .app-tab-list [data-slot='tabs-trigger'] {
+    gap: 5px;
+  }
+  .habit-grid,
+  .template-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .habit-card {
+    padding: 20px;
+  }
+  .form-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .dialog-actions,
+  .day-picker {
+    flex-wrap: wrap;
+  }
+  .heatmap-controls {
+    flex-wrap: wrap;
+    max-width: 100%;
+  }
+}
+@media (pointer: coarse) {
+  .button,
+  .manage-row .button,
+  .icon-button,
+  .checkin-button,
+  .habit-reflection,
+  .text-button,
+  .edit-habit,
+  .day-picker .date-input-label,
+  .app-tab-list [data-slot='tabs-trigger'],
+  .choice,
+  .heatmap-controls .choice,
+  .icon-option {
+    min-height: 44px;
+  }
+  .icon-button,
+  .edit-habit,
+  .icon-option {
+    min-width: 44px;
+  }
+  .heatmap-grid,
+  .heatmap-months {
+    min-width: 1440px;
+  }
+  .heatmap-grid {
+    min-height: 180px;
+  }
+  .color-choices {
+    gap: 16px !important;
+  }
 }
 .page-heading p {
   font-size: 16px;

@@ -32,7 +32,8 @@ const context = vm.createContext({
       return {
         addAll: async (urls) => {
           for (const url of urls) {
-            const path = url === home ? 'index.html' : url.slice(home.length);
+            const path =
+              url === entryURL ? 'index.html' : url.slice(home.length);
             const data = await readFile(resolve(root, path));
             store.set(
               url,
@@ -57,21 +58,25 @@ const context = vm.createContext({
 vm.runInContext(source, context);
 const assets = vm.runInContext('ASSETS', context);
 const home = vm.runInContext('HOME', context);
+const entryURL = vm.runInContext('ENTRY', context);
 const cache = vm.runInContext('CACHE', context);
 const prefix = vm.runInContext('PREFIX', context);
 await test('production files are complete and canonical metadata is correct', async () => {
   assert.ok(assets.length > 5);
   for (const url of assets) {
-    assert.ok(url.startsWith(home));
+    assert.ok(url === entryURL || url.startsWith(home));
     assert.ok(!url.includes('/server/'));
     assert.ok(!url.includes('/.vite/'));
     const file = resolve(
       root,
-      url === home ? 'index.html' : url.slice(home.length),
+      url === entryURL ? 'index.html' : url.slice(home.length),
     );
     await readFile(file);
   }
   const html = await readFile(resolve(root, 'index.html'), 'utf8');
+  assert.ok(assets.includes(entryURL));
+  assert.ok(!assets.includes(`${home}index.html`));
+  if (home !== entryURL) assert.ok(!assets.includes(home));
   assert.ok(html.includes('https://lowkey.tools/streakfreak'));
   assert.ok(html.includes(`${home}manifest.webmanifest`));
   for (const match of html.matchAll(/(?:src|href)="([^"]+)"/g)) {
@@ -85,8 +90,9 @@ await test('production files are complete and canonical metadata is correct', as
   const manifest = JSON.parse(
     await readFile(resolve(root, 'manifest.webmanifest'), 'utf8'),
   );
-  assert.equal(manifest.scope, './');
-  assert.equal(manifest.start_url, './');
+  assert.equal(manifest.scope, home === '/' ? './' : entryURL);
+  assert.equal(manifest.start_url, home === '/' ? './' : entryURL);
+  assert.equal(manifest.id, home === '/' ? './' : entryURL);
   assert.equal(manifest.display, 'standalone');
   assert.ok(manifest.icons.some((i) => i.purpose === 'maskable'));
   for (const icon of manifest.icons) await readFile(resolve(root, icon.src));
@@ -153,6 +159,16 @@ await test('worker never handles writes, external requests, or unknown resources
       method: 'GET',
       mode: 'same-origin',
     },
+    {
+      url: `https://streakfreak.test${home}missing-page`,
+      method: 'GET',
+      mode: 'navigate',
+    },
+    {
+      url: `https://streakfreak.test${entryURL}-unrelated/`,
+      method: 'GET',
+      mode: 'navigate',
+    },
   ])
     handlers.fetch({
       request,
@@ -161,6 +177,27 @@ await test('worker never handles writes, external requests, or unknown resources
       },
     });
   assert.equal(intercepted, false);
+});
+await test('the exact canonical entry path works offline without claiming sibling routes', async () => {
+  offline = true;
+  let response = Promise.resolve(new Response());
+  let intercepted = false;
+  handlers.fetch({
+    request: {
+      url: `https://streakfreak.test${entryURL}`,
+      method: 'GET',
+      mode: 'navigate',
+    },
+    respondWith: (p) => {
+      response = p;
+      intercepted = true;
+    },
+  });
+  assert.ok(intercepted);
+  assert.ok((await (await response).text()).includes('Keep showing up'));
+  offline = false;
+  const headers = await readFile(resolve(root, '_headers'), 'utf8');
+  assert.ok(headers.includes(`Service-Worker-Allowed: ${entryURL}`));
 });
 await test('pre-cached JavaScript remains available offline', async () => {
   const asset = assets.find((p) => p.endsWith('.js'));
