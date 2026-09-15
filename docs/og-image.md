@@ -1,0 +1,7 @@
+# Social image
+
+`public/og-image.png` was generated with the built-in imagegen tool, using `public/icons/icon-512.png` as a branding reference. It is a 1734 × 907 PNG. Open Graph and Twitter use this image; the installable app icons remain separate. Its only maker credit is `by @shrinath_prabhu`. The artwork is excluded from offline precaching because the app does not display it.
+
+## Generation prompt
+
+Use case: ads-marketing. Asset type: Open Graph social share card for Streakfreak, a private offline habit tracker. Create a clean, restrained landscape card at 1200x630 pixels (1.905:1 aspect ratio), with a warm ivory background, dark brown typography and burnt-orange accents matching the supplied flame icon. The supplied image is a branding reference only, not an edit target. Use that flame mark beside a large title on the left. On the right, a small elegant calendar heatmap composed of rounded squares in pale beige and varying burnt orange makes the habit tracking purpose immediately clear. Exact text only: "Streakfreak" as the large title, "Private habits. Lasting streaks." as the short subtitle, and "by @shrinath_prabhu" as a small quiet footer credit. Modern clean sans-serif type similar to Geist, large readable text, generous margins and whitespace. Flat polished graphic, no photography, no device mockups, no gradients or extra decorative badges. Do not include URLs, links, domain names, OwlEye, Lowkey Tools, FuseLLM or any other maker shoutouts. Keep the credit exact, including the underscore. Deliver the card fully composed, not on a mockup.

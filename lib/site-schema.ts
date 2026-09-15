@@ -2,7 +2,7 @@ import site from './site-content.json';
 
 const person = { '@id': 'https://shrinath.me/#person' };
 const organization = { '@id': 'https://owleye.dev/#organization' };
-const website = { '@id': 'https://lowkey.tools/#website' };
+const website = { '@id': `${site.canonical}#website` };
 const app = { '@id': `${site.canonical}#app` };
 const page = { '@id': `${site.canonical}#webpage` };
 
@@ -15,6 +15,7 @@ export const structuredData = {
       ...person,
       name: 'Shrinath Prabhu',
       url: 'https://shrinath.me',
+      sameAs: ['https://x.com/shrinath_prabhu'],
     },
     {
       '@type': 'Organization',
@@ -26,10 +27,17 @@ export const structuredData = {
     {
       '@type': 'WebSite',
       ...website,
-      name: 'Lowkey Tools',
-      url: 'https://lowkey.tools',
+      name: site.name,
+      url: site.canonical,
+      inLanguage: 'en',
       creator: person,
       publisher: organization,
+      isPartOf: {
+        '@type': 'WebSite',
+        '@id': 'https://lowkey.tools/#website',
+        name: 'Lowkey Tools',
+        url: 'https://lowkey.tools',
+      },
     },
     {
       '@type': 'WebApplication',

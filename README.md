@@ -20,7 +20,7 @@ npm run build
 npm start
 ```
 
-Serve `dist/client/` on any HTTPS static host. `npm start` is only a local static file preview. `dist/server/` contains build intermediates and is not deployed. The app does not require a Worker, database service, API keys, or environment secrets.
+Serve `dist/client/` on any HTTPS static host. `npm start` is only a local static file preview. `dist/server/` contains build intermediates and is not deployed. Workers Static Assets hosts the files without an application Worker script, database service, API keys, or runtime secrets.
 
 ## What works
 
@@ -62,67 +62,105 @@ Habits stay in this browser’s IndexedDB. Export/import is entirely local. Ther
 
 Browser storage is scoped to the origin: `streakfreak.lowkey.tools` and `lowkey.tools` do not share a database. Use JSON export/import when moving between domains, browsers, profiles, or devices. Clearing site data or using a private browsing session can remove records. Persistent-storage permission reduces eviction risk but does not replace backups.
 
-The generated service worker precaches the exact built HTML, scripts, styles, and icons. It only handles GET requests for the app’s own origin and scope. Offline navigation returns the precached app shell; IndexedDB remains separate from the shell cache. New releases install a new version and activate once existing tabs close. Obsolete Streakfreak shell caches are removed without clearing habit data. No production service worker is registered in development.
+The generated service worker precaches the exact built HTML, scripts, styles, and app icons; social preview artwork is not needed offline. It only handles GET requests for the app’s own origin and scope. Offline navigation returns the precached app shell; IndexedDB remains separate from the shell cache. New releases install a new version and activate once existing tabs close. Obsolete Streakfreak shell caches are removed without clearing habit data. No production service worker is registered in development.
 
 PWA installation and offline caching need HTTPS (localhost works for development). See [MDN’s service-worker guide](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API/Using_Service_Workers) and [manifest scope documentation](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Manifest/Reference/scope).
 
-## Domains and canonical URL
+## Domain and canonical URL
 
-The canonical is always `https://lowkey.tools/streakfreak`.
+Deploy Streakfreak directly at **https://streakfreak.lowkey.tools/**. The canonical page, social metadata and structured data all use that root URL with a trailing slash. SEO URLs are absolute, so metadata does not need `metadataBase`; this preserves the slash in the framework's rendered canonical and Open Graph URLs, matching the sitemap and `llms.txt` exactly. Both spellings of a domain root resolve to the same page. All builds serve the app and its assets at `/`; no path-prefix environment variable, hub proxy or rewrite is required.
 
-For `streakfreak.lowkey.tools`, deploy the default build at the host root. For hosting within the existing Lowkey Tools site, build with a path prefix:
+The manifest keeps `./` as its ID, start URL and scope, resolving to the domain root. The service worker registers at `/sw.js` with scope `/` and `Service-Worker-Allowed: /`. Its offline fallback handles the home page and index alias only; unknown routes retain their 404 status.
 
-```sh
-NEXT_PUBLIC_BASE_PATH=/streakfreak npm run build
-NEXT_PUBLIC_BASE_PATH=/streakfreak npm start
-```
+Serve JavaScript with its proper MIME type and `sw.js` without a long-lived immutable cache. The build emits Cloudflare-compatible `_headers`; the Workers deployment and local static preview apply the same policies. Hashed framework assets can be cached for a year; HTML and the worker revalidate. Enable the host's Brotli/gzip compression.
 
-Mount `dist/client/` at `/streakfreak/` and **serve its index at `/streakfreak` with HTTP 200**. Redirect `/streakfreak/` and `/streakfreak/index.html` to that exact canonical entry URL at the production host. Do not redirect the canonical URL to the trailing-slash alias. The local preview implements the slash redirect and canonical 200 response. App assets retain the `/streakfreak/` prefix.
+Moving from the private preview to the production domain creates a separate browser storage origin. Export a JSON backup from the old origin, then import it on the new domain to carry over habits and reflections. Connecting a domain does not transfer IndexedDB data.
 
-The subpath build gives the manifest an explicit `/streakfreak` ID, start URL and scope. The worker registers at the same scope with `Service-Worker-Allowed: /streakfreak`, covering the exact canonical page. Browser scopes use prefix matching, so the worker also checks path boundaries and never intercepts sibling applications or unknown page routes. Configure the emitted `Service-Worker-Allowed` header when deploying; do not deploy a conflicting app under a `/streakfreak...` prefix. Root builds retain the portable `./` manifest values.
+## Security headers and caching
 
-Serve JavaScript with its proper MIME type and `sw.js` without a long-lived immutable cache. The build emits Cloudflare-compatible `_headers`; the Vercel build and local static preview apply the same policies. Hashed framework assets can be cached for a year; HTML and the worker must revalidate. Enable the host’s Brotli/gzip compression.
-
-Custom DNS and the existing `lowkey.tools` deployment are external configuration. A private Sites preview is separate from the no-login application and does not connect those domains automatically.
-
-## Security headers, caching and Vercel
-
-`scripts/hosting-rules.mjs` is the shared policy source for Cloudflare `_headers`, the local static server and Vercel Build Output API routes. Security policy changes also change the PWA cache version so old cached documents can receive the new policy.
+`scripts/hosting-rules.mjs` is the shared policy source for Cloudflare `_headers`, the local static server and the Workers static asset package. Security policy changes also change the PWA cache version so old cached documents can receive the new policy.
 
 - CSP allows same-origin resources and exact SHA-256 hashes of the exported startup scripts. It disallows arbitrary inline JavaScript, inline event attributes, `eval`, object embeds, base tags, form navigation and framing. Inline **styles** remain allowed because React and Base UI use them for sizing and positioning. Font loading, local file import, Blob downloads and service-worker requests remain supported. JSON-LD is an inert data block and does not need executable script permission.
 - HSTS lasts one year and applies to the serving host, without a preload registration or a policy imposed on unrelated subdomains. Framing is also denied through `X-Frame-Options`; MIME sniffing is disabled. The policy includes `no-referrer`, same-origin opener/resource protection, disabled DNS prefetch, and disabled camera, microphone, location, payment and USB permissions.
-- The exported 404 keeps its static content but discards unused hydration scripts, canonical metadata and conflicting index directives. Vercel and the local server return 404 with `no-store` and `X-Robots-Tag: noindex` for missing pages. Unsupported write methods receive 405.
-- Vercel and the local server expose only the public static asset list, excluding dotfiles, host configuration, source maps and the internal client-entry manifest. They have no catch-all rewrite to a successful app page.
+- The exported 404 keeps its static content but discards unused hydration scripts, canonical metadata and conflicting index directives. The local server returns 404 with `no-store` and `X-Robots-Tag: noindex` for missing pages. Unsupported write methods receive 405.
+- Workers and the local server expose only the public static asset list, excluding dotfiles, host configuration, source maps and the internal client-entry manifest. They have no catch-all rewrite to a successful app page.
 
 | Resource                                       | Browser cache policy                                                                   |
 | ---------------------------------------------- | -------------------------------------------------------------------------------------- |
 | App HTML, RSC payload, web manifest            | `public, max-age=0, must-revalidate`                                                   |
 | Service worker                                 | `no-cache, max-age=0, must-revalidate` plus the correct `Service-Worker-Allowed` scope |
 | Hashed `/_next/static/` scripts, CSS and fonts | `public, max-age=31536000, immutable`                                                  |
-| Unversioned icons and favicon                  | `public, max-age=86400`                                                                |
+| Unversioned icons, social image and favicon                  | `public, max-age=86400`                                                                |
 | Sitemap, robots, llms and font license         | `public, max-age=3600`                                                                 |
-| Missing pages and rejected writes              | `no-store`                                                                             |
+| Missing pages and rejected writes in the local preview | `no-store`                                                                             |
 
-The root `vercel.json` selects the static build rather than Next.js server deployment. On Vercel, connect this repository and keep its declared build command, `npm run build:vercel`. It runs the normal static export and creates `.vercel/output/static/` plus `.vercel/output/config.json` with fresh CSP hashes, headers, canonical-path redirects and real 404 routes. Do not set a conflicting output-directory override or edit the generated rules manually. This produces no Vercel Functions or server-side data store.
+The build rejects an oversized CSP instead of weakening it to allow arbitrary scripts. Local server and Workers runtime checks verify the generated policies. Final production headers still need verification after deploying to Cloudflare; local configuration does not change the existing Sites preview's hosting policy. References: [CSP script hashes](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Security-Policy/script-src), [Cloudflare header rules and limits](https://developers.cloudflare.com/workers/static-assets/headers/).
 
-Use the default build for a standalone host such as `streakfreak.lowkey.tools`. Set `NEXT_PUBLIC_BASE_PATH=/streakfreak` for the canonical subpath: the Vercel adapter mounts files under that path, serves `/streakfreak` with 200, and redirects its trailing-slash and index aliases. If the existing Lowkey Tools hub owns the domain, its project still needs to route this path to the app and merge root crawl files; this repository does not overwrite that project. The subdomain remains usable until a separate domain redirect is configured, preserving access to users’ origin-specific exports.
+## Cloudflare Workers
 
-Vercel settings are prepared in source and generated output; a live Vercel deployment, DNS, account firewall settings and platform-added scripts have not been verified here. The current publication uses Sites. Direct authenticated HTTP inspection of that preview showed that its host does **not** apply the app’s `_headers` file: it returns its own revalidation cache policy and omits the custom security headers. The configuration therefore must not be described as enforced on the Sites preview. The local server’s responses and generated Vercel rules are verified; final production headers still need verification after deployment on Vercel or another compatible host. The build rejects an oversized CSP instead of weakening it to allow arbitrary scripts. References: [Vercel Build Output API](https://vercel.com/docs/build-output-api/configuration), [Vercel configuration](https://vercel.com/docs/project-configuration/vercel-json), [CSP script hashes](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Security-Policy/script-src), [Cloudflare header rules and limits](https://developers.cloudflare.com/workers/static-assets/headers/).
+Cloudflare Workers Static Assets is the Cloudflare deployment target. `npm run build:workers` creates `dist/workers/` with only public files, the shared `_headers` policy, permanent index redirects in `_redirects`, and a sanitized `404.html`. No application Worker script, server bundle, bindings or backend is deployed.
+
+Create a **Worker** with Git integration and use these settings:
+
+| Setting | Value |
+| --- | --- |
+| Worker name | `streakfreak` (must match `cloudflare/wrangler.json`) |
+| Production branch | `main` |
+| Root directory | Repository root |
+| Build command | `npm run build:workers` |
+| Deploy command | `npx wrangler deploy --config cloudflare/wrangler.json` |
+| Non-production branch deploy command | `npx wrangler versions upload --config cloudflare/wrangler.json` |
+| Static assets directory | `dist/workers`, declared in Wrangler config |
+| Node.js | `24`, selected by `.node-version` |
+| App environment variables and bindings | None |
+| Custom domain | `streakfreak.lowkey.tools`, declared in `routes` with `custom_domain: true` |
+
+Workers Builds installs dependencies from the npm lockfile. Use the commands above explicitly: the config lives under `cloudflare/` to keep Vinext's static export separate from its automatic server Workers integration. Assets paths resolve relative to that config. There is no Pages output-directory setting, framework preset or `pages_build_output_dir`. The compatibility date matches the installed Wrangler runtime baseline. Remove conflicting Node version overrides in the build dashboard.
+
+For local Cloudflare runtime preview:
+
+```sh
+npm run build:workers
+npm run preview:workers
+```
+
+For a manual release after authenticating to the intended Cloudflare account:
+
+```sh
+npx wrangler login
+npm run deploy:workers
+```
+
+The manual deploy command builds fresh output first. Workers Builds uses separate build and deploy steps, avoiding a duplicate build. To validate packaging without uploading or publishing:
+
+```sh
+npx wrangler deploy --config cloudflare/wrangler.json --dry-run
+```
+
+`cloudflare/wrangler.json` declares `streakfreak.lowkey.tools` under `routes` with `custom_domain: true`. The hostname has no protocol, slash or wildcard; it is a custom origin domain, not a path route. On a production deploy, Wrangler provisions the custom domain and Cloudflare manages its DNS record and certificate in the account's active `lowkey.tools` zone. The deployment credentials must have permission to manage that zone. If an existing CNAME or another hosting project owns the hostname, resolve that association when switching hosts.
+
+`workers_dev: true` and `preview_urls: true` keep the Workers development hostname and version previews available, as in Billbook. Non-production builds upload a preview version without promoting it to the custom production domain. No live domain or DNS changes happen during a local build, preview or dry run. The canonical remains `https://streakfreak.lowkey.tools/`; retaining the same origin preserves IndexedDB data, while moving from a preview origin still needs JSON export/import.
+
+Workers applies `_headers` to static responses and handles index aliases through `_redirects`. `assets.not_found_handling: "404-page"` preserves real missing-page responses instead of returning a successful app shell. `html_handling: "auto-trailing-slash"` serves the root index naturally; the explicit index aliases redirect permanently to `/`. The 404 document is noindex and is excluded from service-worker precaching. Redirect and error response details are managed by the static asset runtime; the app does not introduce a server handler. Keep the standard Workers asset caching and avoid a zone-wide Cache Everything rule that would override shell revalidation.
+
+The local Workers HTTP checks cover headers, cache policies, routing and offline installation assets. Local checks and a deploy dry run do not publish a release or connect DNS. Verify production responses after deploying.
+
+References: [Workers Static Assets](https://developers.cloudflare.com/workers/static-assets/), [Workers Builds settings](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/), [static headers](https://developers.cloudflare.com/workers/static-assets/headers/), [HTML routing](https://developers.cloudflare.com/workers/static-assets/routing/advanced/html-handling/), [custom domains in Wrangler](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/#set-up-a-custom-domain-in-your-wrangler-configuration-file).
 
 ## Search, answer engines and attribution
 
 `lib/site-content.json` is the shared source for the title, description, public product facts and FAQs. `app/page.tsx` renders the guide and JSON-LD on the server, passing the guide as children to the client tracker. This keeps the guide implementation out of the client JavaScript while making all answers and creator links readable in the initial HTML. No personal records enter generated HTML or discovery files.
 
-- Canonical, Open Graph and Twitter URLs consistently identify `https://lowkey.tools/streakfreak`. Social cards use the existing 512px app icon, which must be served from the canonical host.
-- JSON-LD describes the WebApplication, WebPage, FAQPage, Lowkey Tools website, Shrinath Prabhu and OwlEye Analytics, with stable entity IDs matching the other Lowkey Tools sites. FAQ answers match visible copy. No ratings, endorsements or reviews are invented.
-- OwlEye and Shrinath have visible contextual links, dedicated maker cards, footer credits and linked structured attribution. These are normal followed links without tracking parameters.
+- Canonical, Open Graph and Twitter URLs consistently identify `https://streakfreak.lowkey.tools/`. Social cards use `public/og-image.png`, a 1734 × 907 landscape image with only `by @shrinath_prabhu` as its maker credit. The image must be served from the canonical host. Twitter uses the large-image card. The artwork is excluded from offline installation downloads; the app icons still ship separately. See [the generation prompt](docs/og-image.md).
+- JSON-LD describes the Streakfreak WebSite, WebApplication, WebPage and FAQPage at the canonical subdomain, with Lowkey Tools as its parent collection. Shrinath Prabhu and OwlEye Analytics retain their shared attribution IDs. The site name also matches Open Graph metadata. FAQ answers match visible copy. No ratings, endorsements or reviews are invented.
+- OwlEye and Shrinath have visible contextual links, dedicated maker cards, footer credits and linked structured attribution. The maker section also links to @shrinath_prabhu on X. A single SuperFocus recommendation connects habits with making time for a focus session; its public copy and destination live in `lib/site-content.json` and also appear in `llms.txt`. These are normal followed links without tracking parameters.
 - `scripts/build-discovery.mjs` generates `sitemap.xml`, `robots.txt` and `llms.txt` in `dist/client/` on every build. The sitemap lists only the canonical page; UI tabs, local history and aliases are not indexable pages. No speculative `lastmod`, `priority` or `changefreq` values are emitted.
 - The wildcard robots rule allows compliant search and answer-engine crawlers to read public app information. IndexedDB records are not HTTP endpoints. `llms.txt` provides an optional product summary and official maker links; it is not an access control or a guaranteed indexing mechanism.
 - The document has an English language tag, one H1, labeled navigation, a main landmark, a top-level footer, a skip link and a structured H2/H3 guide. Mobile uses the same public content and metadata. Narrow screens get single-column habit/template cards, large touch controls, scrollable heatmaps and readable form fields; zoom remains enabled.
 
-For the **canonical production deployment**, the host must serve the canonical page and assets publicly over HTTPS, merge `Sitemap: https://lowkey.tools/streakfreak/sitemap.xml` into the existing **`https://lowkey.tools/robots.txt`**, and add the canonical URL to the hub’s root sitemap (or submit the app sitemap in a verified Search Console property). A robots file inside `/streakfreak/` does not control crawling of the origin. Link the app’s `/streakfreak/llms.txt` from the hub’s existing root `/llms.txt`; do not overwrite files used by the other tools. Prefer a permanent redirect from `streakfreak.lowkey.tools` to the canonical URL once users have exported any origin-specific data. Missing URLs must return 404, not the app shell.
+The production deployment serves its own root `robots.txt`, `sitemap.xml` and `llms.txt`. The robots file points to `https://streakfreak.lowkey.tools/sitemap.xml`; the sitemap lists `https://streakfreak.lowkey.tools/` only. No hub crawl-file merging is needed. Submit the app's sitemap in the verified Search Console property after the domain is publicly available over HTTPS. Missing URLs must return 404, not the app shell.
 
-DNS, hub routing/root files, public access, Search Console submission, Rich Results validation and real-device Web Vitals still require verification on that production host. The private Sites publication is not crawlable by public search engines. Standard SEO supports Google’s generative search features; extra AI files or special markup are not required, and FAQ/app markup does not guarantee a rich result. References: [Google AI features guidance](https://developers.google.com/search/docs/appearance/ai-features), [canonicalization](https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls), [root robots placement](https://developers.google.com/crawling/docs/robots-txt/create-robots-txt), [llms.txt proposal](https://llmstxt.org/).
+DNS, public access, Search Console submission, Rich Results validation and real-device Web Vitals still require verification on that production host. The private Sites publication is not crawlable by public search engines. Standard SEO supports Google's generative search features; extra AI files or special markup are not required, and FAQ/app markup does not guarantee a rich result. References: [Google AI features guidance](https://developers.google.com/search/docs/appearance/ai-features), [canonicalization](https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls), [root robots placement](https://developers.google.com/crawling/docs/robots-txt/create-robots-txt), [llms.txt proposal](https://llmstxt.org/).
 
 History calculations group entries once per update, memoize habit streaks and heatmap summaries, and reuse `Intl` date/number formatters. CSV exports reuse the same history grouping. This avoids scanning an entire large journal once for every habit and recomputing calendar labels when opening a dialog or choosing a day. Run the synthetic, non-browser benchmark with `node --experimental-strip-types scripts/benchmark-history.mjs`; its timings do not represent Lighthouse or Core Web Vitals scores.
 
@@ -133,11 +171,11 @@ npm run typecheck
 npm run lint
 npm test
 npm run build
-node --test tests/pwa.test.mjs tests/discovery.test.mjs
-node scripts/build-vercel.mjs
-node --test tests/security.test.mjs
+node scripts/build-workers.mjs
+node --test tests/pwa.test.mjs tests/discovery.test.mjs tests/security.test.mjs
+npm run test:workers
 ```
 
-The tests exercise goal semantics, calendar/DST behavior, streak gaps, grouped history, backup validation, CSV injection escaping, IndexedDB transactions, goal snapshot preservation, import merges, and cascading deletion. Production tests verify the precache files, canonical/manifest paths, cache cleanup isolation, exact-path offline fallback, request filtering, static semantic landmarks, matching FAQ/schema facts, social metadata, creator links and crawler files. Security tests start the local static server and check actual response headers, every executable startup hash, resource caching, redirects, 404/405 behavior, HEAD requests, blocked internal files and matching Vercel output. Run production tests against both root and `NEXT_PUBLIC_BASE_PATH=/streakfreak` builds, passing the same environment variable to the Vercel adapter and security tests. Shadcn-generated files are excluded from the app’s lint scope; they are retained unmodified.
+The tests exercise goal semantics, calendar/DST behavior, streak gaps, grouped history, backup validation, CSV injection escaping, IndexedDB transactions, goal snapshot preservation, import merges, and cascading deletion. Production tests verify the precache files, canonical/manifest paths, cache cleanup isolation, exact-path offline fallback, request filtering, static semantic landmarks, matching FAQ/schema facts, social metadata, creator links and crawler files. Security tests start the local static server and check actual response headers, every executable startup hash, resource caching, redirects, 404/405 behavior, HEAD requests, blocked internal files and matching Workers output. Production tests target the root deployment and verify that retired path URLs return 404. The Workers checks use Wrangler to verify static headers, MIME types, index redirects, missing routes, ETag/304, HEAD, and every offline precache URL against actual local HTTP responses. Shadcn-generated files are excluded from the app’s lint scope; they are retained unmodified.
 
 Optional WebMCP tools (`read_habit_progress`, `save_habit_check_in`) use the same local actions and are only registered if the browser provides `document.modelContext`. Their adapter contract is unit-tested; a live supported WebMCP browser was not available for integration verification. No browser interaction, visual, or device installation testing has been performed in this task.

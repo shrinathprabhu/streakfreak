@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import localFont from 'next/font/local';
 import site from '@/lib/site-content.json';
 import './globals.css';
-const base = process.env.NEXT_PUBLIC_BASE_PATH || '';
 const geistSans = localFont({
   src: './fonts/GeistVariable.woff2',
   variable: '--font-geist-sans',
@@ -13,7 +12,7 @@ const geistSans = localFont({
   fallback: ['Helvetica Neue', 'Arial', 'sans-serif'],
 });
 export const metadata: Metadata = {
-  metadataBase: new URL(site.canonical),
+  // Absolute SEO URLs preserve the canonical root slash without base normalization.
   title: site.title,
   description: site.description,
   alternates: { canonical: site.canonical },
@@ -30,31 +29,32 @@ export const metadata: Metadata = {
     url: site.canonical,
     title: site.title,
     description: site.description,
-    siteName: 'Streakfreak · Lowkey Tools',
+    siteName: site.name,
     locale: 'en_US',
     images: [
       {
-        url: `${site.canonical}/icons/icon-512.png`,
-        width: 512,
-        height: 512,
-        alt: 'Streakfreak orange flame app icon',
+        url: new URL('og-image.png', site.canonical).href,
+        width: 1734,
+        height: 907,
+        alt: 'Streakfreak — Private habits. Lasting streaks. by @shrinath_prabhu',
       },
     ],
   },
   twitter: {
-    card: 'summary',
+    card: 'summary_large_image',
+    creator: '@shrinath_prabhu',
     title: site.title,
     description: site.description,
-    images: [`${site.canonical}/icons/icon-512.png`],
+    images: [new URL('og-image.png', site.canonical).href],
   },
   applicationName: 'Streakfreak',
   authors: [{ name: 'Shrinath Prabhu', url: 'https://shrinath.me' }],
   creator: 'Shrinath Prabhu',
   publisher: 'OwlEye Analytics',
-  manifest: `${base}/manifest.webmanifest`,
+  manifest: '/manifest.webmanifest',
   icons: {
-    icon: [{ url: `${base}/favicon.svg`, type: 'image/svg+xml' }],
-    apple: `${base}/icons/apple-touch-icon.png`,
+    icon: [{ url: '/favicon.svg', type: 'image/svg+xml' }],
+    apple: '/icons/apple-touch-icon.png',
   },
   appleWebApp: {
     capable: true,

@@ -384,11 +384,8 @@ export default function Tracker({ children }: { children: ReactNode }) {
         Skip to habits
       </a>
       <header className="site-header">
-        <a
-          className="brand"
-          href={process.env.NEXT_PUBLIC_BASE_PATH || '/'}
-          aria-label="Streakfreak home"
-        >
+        {/* oxlint-disable-next-line next/no-html-link-for-pages -- A document navigation resets dashboard state and uses the offline shell. */}
+        <a className="brand" href="/" aria-label="Streakfreak home">
           <span className="brand-mark">
             <Flame size={23} fill="currentColor" />
           </span>
@@ -1149,15 +1146,15 @@ export default function Tracker({ children }: { children: ReactNode }) {
         </span>
         <div className="maker-credit">
           <p>
-            Built by{' '}
+            A daily ritual, made by{' '}
             <a
               href="https://shrinath.me"
               target="_blank"
               rel="author noopener noreferrer"
             >
-              Shrinath
-            </a>
-            . From the makers of{' '}
+              Shrinath Prabhu
+            </a>{' '}
+            of{' '}
             <a
               href="https://owleye.dev"
               target="_blank"
@@ -1173,7 +1170,8 @@ export default function Tracker({ children }: { children: ReactNode }) {
             target="_blank"
             rel="noopener noreferrer"
           >
-            More little tools at <b>lowkey.tools</b> <ArrowUpRight size={13} />
+            Your next useful find: <b>lowkey.tools</b>{' '}
+            <ArrowUpRight size={13} />
           </a>
         </div>
       </footer>

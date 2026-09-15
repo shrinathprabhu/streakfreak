@@ -87,7 +87,7 @@ export function securityHeaders(csp) {
   };
 }
 
-export function resourceHeaders(file, base = '') {
+export function resourceHeaders(file) {
   const headers = { 'Cache-Control': REVALIDATE };
   if (file.startsWith('_next/static/')) headers['Cache-Control'] = IMMUTABLE;
   else if (/\.(?:png|svg)$/.test(file))
@@ -96,7 +96,7 @@ export function resourceHeaders(file, base = '') {
     headers['Cache-Control'] = 'public, max-age=3600';
   if (file === 'sw.js') {
     headers['Cache-Control'] = 'no-cache, max-age=0, must-revalidate';
-    headers['Service-Worker-Allowed'] = base || '/';
+    headers['Service-Worker-Allowed'] = '/';
   }
   if (file === '404.html') {
     headers['Cache-Control'] = 'no-store';
@@ -108,6 +108,7 @@ export function resourceHeaders(file, base = '') {
     headers['Content-Type'] = 'text/plain; charset=utf-8';
   if (file.endsWith('.webmanifest'))
     headers['Content-Type'] = 'application/manifest+json';
+  if (file.endsWith('.rsc')) headers['Content-Type'] = 'text/x-component';
   return headers;
 }
 
@@ -127,19 +128,17 @@ export function staticErrorPage(html) {
     .replace('</head>', '<meta name="robots" content="noindex"/></head>');
 }
 
-export async function cloudflareHeaders(root, base, csp) {
+export async function cloudflareHeaders(root, csp) {
   const rule = (path, headers) =>
     `${path}\n${Object.entries(headers)
       .map(([key, value]) => `  ${key}: ${value}`)
       .join('\n')}\n`;
-  const prefix = `${base}/`;
   let output = rule('/*', securityHeaders(csp));
-  output += rule(base || '/', resourceHeaders('index.html', base));
-  if (base) output += rule(prefix, resourceHeaders('index.html', base));
-  output += rule(`${prefix}_next/static/*`, { 'Cache-Control': IMMUTABLE });
+  output += rule('/', resourceHeaders('index.html'));
+  output += rule('/_next/static/*', { 'Cache-Control': IMMUTABLE });
   for (const file of await publicFiles(root)) {
     if (!file.startsWith('_next/static/'))
-      output += rule(prefix + file, resourceHeaders(file, base));
+      output += rule('/' + file, resourceHeaders(file));
   }
   if (output.split('\n').filter((line) => line.startsWith('/')).length > 100)
     throw new Error(

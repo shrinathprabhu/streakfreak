@@ -72,20 +72,38 @@ export function Guide() {
           ))}
         </div>
       </section>
+      <section aria-labelledby="companion-heading">
+        <p className="eyebrow">ONE MORE TOOL FOR YOUR DAILY RITUAL</p>
+        <h2 id="companion-heading">{site.companion.heading}</h2>
+        <a
+          className="companion-card"
+          href={site.companion.url}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <div>
+            <h3>Settle in with {site.companion.name}</h3>
+            <p>{site.companion.description}</p>
+          </div>
+          <span className="companion-arrow" aria-hidden="true">
+            ↗
+          </span>
+        </a>
+      </section>
       <section
         id="makers"
         aria-labelledby="makers-heading"
         className="makers-section"
       >
         <div>
-          <p className="eyebrow">THE PEOPLE BEHIND THE LITTLE THINGS</p>
+          <p className="eyebrow">EVERY STREAK STARTS WITH SOMEONE</p>
           <h2 id="makers-heading">
-            Built by Shrinath.
+            You bring the consistency.
             <br />
-            From the makers of OwlEye.
+            We bring the little tools.
           </h2>
           <p>
-            Streakfreak is part of{' '}
+            One of the small, useful things at{' '}
             <a
               href="https://lowkey.tools"
               target="_blank"
@@ -93,7 +111,7 @@ export function Guide() {
             >
               Lowkey Tools
             </a>
-            , a collection of small, useful tools by{' '}
+            . Made by{' '}
             <a
               href="https://shrinath.me"
               target="_blank"
@@ -101,7 +119,7 @@ export function Guide() {
             >
               Shrinath Prabhu
             </a>
-            , the founder of{' '}
+            , from the makers of{' '}
             <a
               href="https://owleye.dev"
               target="_blank"
@@ -111,6 +129,15 @@ export function Guide() {
             </a>
             .
           </p>
+          <a
+            className="maker-follow"
+            href="https://x.com/shrinath_prabhu"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Follow the next idea: @shrinath_prabhu on X{' '}
+            <span aria-hidden="true">↗</span>
+          </a>
         </div>
         <div className="maker-links">
           <a
@@ -129,7 +156,7 @@ export function Guide() {
             target="_blank"
             rel="author noopener noreferrer"
           >
-            <span>MEET THE CREATOR</span>
+            <span>THE MAKER&apos;S NOTEBOOK</span>
             <strong>
               More from Shrinath Prabhu <span aria-hidden="true">↗</span>
             </strong>

@@ -33,9 +33,8 @@ export function usePWA() {
     window.addEventListener('beforeinstallprompt', prompt);
     window.addEventListener('appinstalled', complete);
     if (process.env.NODE_ENV === 'production' && 'serviceWorker' in navigator) {
-      const base = process.env.NEXT_PUBLIC_BASE_PATH || '';
       void navigator.serviceWorker
-        .register(`${base}/sw.js`, { scope: base || '/' })
+        .register('/sw.js', { scope: '/' })
         .then(() => navigator.serviceWorker.ready)
         .then(() => setOfflineReady(true))
         .catch(() => setOfflineReady(false));

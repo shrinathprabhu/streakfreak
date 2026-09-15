@@ -1,6 +1,12 @@
 {
   "name": "Streakfreak",
-  "canonical": "https://lowkey.tools/streakfreak",
+  "canonical": "https://streakfreak.lowkey.tools/",
+  "companion": {
+    "name": "SuperFocus",
+    "url": "https://superfocus.lowkey.tools/",
+    "heading": "Make a little room for tomorrow's streak.",
+    "description": "A habit needs a moment in your day. Give it one with SuperFocus: Pomodoro sessions, tasks and quiet music in your offline focus space."
+  },
   "title": "Streakfreak — Free, Private Habit Tracker & Streak Calendar",
   "description": "Track habits with a yearly heatmap, daily goals and outcome notes. Free, offline-ready habit tracker with JSON/CSV export. No login, subscriptions or cloud sync.",
   "summary": "Streakfreak is a free, local-only habit and streak tracker by Shrinath Prabhu, from the makers of OwlEye Analytics. Track daily goals, see a full-year heatmap calendar, and save reflections about what you achieved. Your habits stay in this browser, with no account or subscription.",

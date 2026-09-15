@@ -1920,6 +1920,39 @@ footer b {
   display: grid;
   gap: 12px;
 }
+.maker-follow {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 14px;
+}
+.product-guide .companion-card {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 24px;
+  border: 1px solid #e6dbce;
+  border-radius: 12px;
+  background: #fff6ed;
+  text-decoration: none;
+}
+.companion-card:hover {
+  border-color: #a84316;
+}
+.companion-card div {
+  min-width: 0;
+}
+.companion-card p {
+  max-width: 65ch;
+  margin: 0;
+  color: #6e675c;
+}
+.companion-arrow {
+  flex: none;
+  margin-left: auto;
+  font-size: 26px;
+  line-height: 1;
+}
 .maker-links a {
   display: grid;
   gap: 5px;

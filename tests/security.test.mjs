@@ -2,18 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { spawn } from 'node:child_process';
-import { readFile, readdir } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { readFile } from 'node:fs/promises';
 import { once } from 'node:events';
 
-const base = process.env.NEXT_PUBLIC_BASE_PATH || '';
-const entry = base || '/';
-const prefix = `${base}/`;
+const entry = '/';
+const prefix = '/';
 const html = await readFile('dist/client/index.html', 'utf8');
 const rules = await readFile('dist/client/_headers', 'utf8');
-const deployment = JSON.parse(
-  await readFile('.vercel/output/config.json', 'utf8'),
-);
 const server = spawn(process.execPath, ['scripts/serve.mjs'], {
   env: { ...process.env, PORT: '0' },
   stdio: ['ignore', 'pipe', 'pipe'],
@@ -144,17 +139,16 @@ try {
   });
 
   await test('aliases redirect; unknown paths, internal metadata and writes are not served as the app', async () => {
-    for (const alias of [
-      `${prefix}index.html`,
-      `${prefix}index`,
-      ...(base ? [prefix] : []),
-    ]) {
+    for (const alias of [`${prefix}index.html`, `${prefix}index`]) {
       const response = await fetchPath(alias);
       assert.equal(response.status, 308);
       assert.equal(response.headers.get('location'), entry);
     }
     for (const path of [
       'missing-page',
+      'streakfreak',
+      'streakfreak/',
+      'streakfreak/sw.js',
       '404.html',
       '.openai/hosting.json',
       '.vite/manifest.json',
@@ -177,63 +171,15 @@ try {
         .status,
       405,
     );
-    if (base) assert.equal((await fetchPath(base + '-other/')).status, 404);
   });
 
-  await test('Vercel and Cloudflare output apply the same security policy without overlapping cache headers', async () => {
-    assert.equal(deployment.version, 3);
+  await test('the Workers package retains the local security policy within header limits', async () => {
     const actualCsp = (await fetchPath(entry)).headers.get(
       'content-security-policy',
     );
-    assert.equal(
-      deployment.routes[0].headers['Content-Security-Policy'],
-      actualCsp,
-    );
     assert.ok(rules.includes(`  Content-Security-Policy: ${actualCsp}`));
     assert.ok(rules.split('\n').every((line) => line.length <= 2000));
-    const route = deployment.routes.find(
-      (r) =>
-        r.src &&
-        new RegExp(r.src).test(entry) &&
-        r.dest?.endsWith('/index.html'),
-    );
-    assert.equal(route.dest, prefix + 'index.html');
-    assert.ok(!route.status || route.status === 200);
-    assert.ok(deployment.routes.some((r) => r.handle === 'filesystem'));
-    assert.equal(deployment.routes.at(-1).status, 404);
-    assert.equal(deployment.routes.at(-1).dest, prefix + '404.html');
-    const copiedRoot = resolve('.vercel/output/static', base.slice(1));
-    const copied = await readFile(resolve(copiedRoot, 'index.html'), 'utf8');
-    assert.equal(copied, html);
-    const names = await readdir(copiedRoot);
-    assert.ok(
-      !names.some(
-        (name) =>
-          name.startsWith('.') ||
-          [
-            '_headers',
-            '_redirects',
-            'vinext-client-entry-manifest.json',
-          ].includes(name),
-      ),
-    );
-    for (const file of ['sw.js', 'manifest.webmanifest', 'sitemap.xml']) {
-      const matches = deployment.routes.filter(
-        (r) => r.src && new RegExp(r.src).test(prefix + file) && r.continue,
-      );
-      const cacheValues = matches
-        .map((r) => r.headers?.['Cache-Control'])
-        .filter(Boolean);
-      assert.equal(
-        cacheValues.length,
-        1,
-        `Duplicate cache headers for ${file}`,
-      );
-      assert.equal(
-        cacheValues[0],
-        (await fetchPath(prefix + file)).headers.get('cache-control'),
-      );
-    }
+    assert.equal(await readFile('dist/workers/_headers', 'utf8'), rules);
   });
 } finally {
   if (server.exitCode === null) {

@@ -1,0 +1,14 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "streakfreak",
+  "compatibility_date": "2026-05-15",
+  "send_metrics": false,
+  "workers_dev": true,
+  "preview_urls": true,
+  "routes": [{ "pattern": "streakfreak.lowkey.tools", "custom_domain": true }],
+  "assets": {
+    "directory": "../dist/workers",
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "404-page"
+  }
+}

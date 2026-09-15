@@ -8,11 +8,14 @@
   "scripts": {
     "dev": "vinext dev",
     "build": "vinext build && node scripts/build-pwa.mjs",
-    "build:vercel": "npm run build && node scripts/build-vercel.mjs",
+    "build:workers": "npm run build && node scripts/build-workers.mjs",
+    "preview:workers": "wrangler dev --config cloudflare/wrangler.json --local",
+    "deploy:workers": "npm run build:workers && wrangler deploy --config cloudflare/wrangler.json",
     "start": "node scripts/serve.mjs",
     "lint": "oxlint",
     "format": "oxfmt",
     "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "test:workers": "node --test tests/workers.test.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

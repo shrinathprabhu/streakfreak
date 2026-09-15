@@ -21,8 +21,6 @@ export async function buildDiscovery(output) {
 </urlset>
 `,
   );
-  // robots.txt is effective only at an origin's root. Subpath hosts must merge
-  // the sitemap directive into their existing root robots.txt (see README).
   await writeFile(
     join(output, 'robots.txt'),
     `# Streakfreak: public product information; habit data stays in IndexedDB.
@@ -30,7 +28,7 @@ export async function buildDiscovery(output) {
 User-agent: *
 Allow: /
 
-Sitemap: ${site.canonical}/sitemap.xml
+Sitemap: ${new URL('sitemap.xml', site.canonical).href}
 `,
   );
   await writeFile(
@@ -46,7 +44,12 @@ Canonical URL: ${site.canonical}
 - [Streakfreak](${site.canonical}): Free habit tracker, product guide and frequently asked questions.
 - [OwlEye Analytics](https://owleye.dev): From the makers of OwlEye Analytics; publisher of Streakfreak.
 - [Shrinath Prabhu](https://shrinath.me): Creator of Streakfreak and founder of OwlEye Analytics.
+- [Follow Shrinath on X](https://x.com/shrinath_prabhu): Updates from the maker.
 - [Lowkey Tools](https://lowkey.tools): The collection that includes Streakfreak.
+
+## A companion for your routine
+
+- [${site.companion.name}](${site.companion.url}): ${site.companion.description}
 
 ## Features
 
@@ -58,7 +61,7 @@ ${site.faqs.map(({ question, answer }) => `### ${question}\n\n${answer}`).join('
 
 ## Data and availability
 
-This file describes the public application only. Personal habits and notes are never included in site HTML, structured data, sitemaps or this file. There is no server-side habit database, automatic device sync, wearable integration or sensor tracking. Template goals are customizable examples, not personalized health advice. Browser storage is scoped to each origin; export and import JSON to move between the subdomain and canonical site. Installation and offline caching require HTTPS and a compatible browser.
+This file describes the public application only. Personal habits and notes are never included in site HTML, structured data, sitemaps or this file. There is no server-side habit database, automatic device sync, wearable integration or sensor tracking. Template goals are customizable examples, not personalized health advice. Browser storage is scoped to each origin; export and import JSON to move between domains, browsers or devices. Installation and offline caching require HTTPS and a compatible browser.
 `,
   );
 }

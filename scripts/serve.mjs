@@ -10,8 +10,6 @@ import {
 } from './hosting-rules.mjs';
 const root = resolve('dist/client');
 const port = Number(process.env.PORT || 4173);
-const base = process.env.NEXT_PUBLIC_BASE_PATH || '';
-const entry = base || '/';
 const publicPaths = new Set(await publicFiles(root));
 const commonHeaders = securityHeaders(await contentSecurityPolicy(root));
 const types = {
@@ -37,23 +35,17 @@ const server = createServer(async (req, res) => {
   }
   try {
     const url = new URL(req.url, 'http://localhost');
-    const aliases = [
-      `${base}/index`,
-      `${base}/index.html`,
-      ...(base ? [base + '/'] : []),
-    ];
+    const aliases = ['/index', '/index.html'];
     if (aliases.includes(url.pathname)) {
-      res.writeHead(308, { Location: entry, 'Cache-Control': REVALIDATE });
+      res.writeHead(308, { Location: '/', 'Cache-Control': REVALIDATE });
       res.end();
       return;
     }
-    if (url.pathname !== base && !url.pathname.startsWith(base + '/'))
-      throw new Error('Not found');
     const path = resolve(
       root,
-      url.pathname === entry
+      url.pathname === '/'
         ? './index.html'
-        : '.' + decodeURIComponent(url.pathname.slice(base.length)),
+        : '.' + decodeURIComponent(url.pathname),
     );
     if (!path.startsWith(root + '/') && path !== root)
       throw new Error('Not found');
@@ -63,13 +55,13 @@ const server = createServer(async (req, res) => {
     const data = await readFile(path);
     res.writeHead(200, {
       'Content-Type': types[extname(path)] || 'application/octet-stream',
-      ...resourceHeaders(file, base),
+      ...resourceHeaders(file),
     });
     res.end(req.method === 'HEAD' ? undefined : data);
   } catch {
     res.writeHead(404, {
       'Content-Type': 'text/html; charset=utf-8',
-      ...resourceHeaders('404.html', base),
+      ...resourceHeaders('404.html'),
     });
     res.end(
       req.method === 'HEAD'
@@ -80,7 +72,5 @@ const server = createServer(async (req, res) => {
 });
 server.listen(port, '127.0.0.1', () => {
   const address = server.address();
-  console.log(
-    `Streakfreak static preview: http://127.0.0.1:${address.port}${entry}`,
-  );
+  console.log(`Streakfreak static preview: http://127.0.0.1:${address.port}/`);
 });

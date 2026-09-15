@@ -30,10 +30,10 @@ yarn-error.log*
 .env*
 
 # deployment and generated files
-.vercel
 next-env.d.ts
 /dist/
-/.wrangler/
+**/.wrangler/
+.dev.vars*
 /outputs/
 /work/
 *.tsbuildinfo
