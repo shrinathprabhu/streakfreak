@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
+import { spawn, execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { once } from 'node:events';
 import { readFile, readdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -19,6 +20,41 @@ const output = resolve('cloudflare', config.assets.directory);
 const files = await publicFiles('dist/client');
 const html = await readFile(resolve(output, 'index.html'), 'utf8');
 const csp = await contentSecurityPolicy(output);
+
+await test('root Wrangler deploy discovers the built app without running setup or changing dependencies', async () => {
+  const pointer = JSON.parse(
+    await readFile('.wrangler/deploy/config.json', 'utf8'),
+  );
+  assert.equal(
+    resolve('.wrangler/deploy', pointer.configPath),
+    resolve('cloudflare/wrangler.json'),
+  );
+  const packageBefore = await readFile('package.json', 'utf8');
+  const lockBefore = await readFile('package-lock.json', 'utf8');
+  const { stdout, stderr } = await promisify(execFile)(
+    process.execPath,
+    ['node_modules/wrangler/bin/wrangler.js', 'deploy', '--dry-run'],
+    {
+      timeout: 30_000,
+      env: {
+        ...process.env,
+        CI: 'true',
+        WRANGLER_SEND_METRICS: 'false',
+        WRANGLER_LOG_PATH: resolve(
+          tmpdir(),
+          `streakfreak-discovery-test-${process.pid}.log`,
+        ),
+      },
+    },
+  );
+  const log = stdout + stderr;
+  assert.ok(log.includes('--dry-run: exiting now.'));
+  assert.ok(log.includes('cloudflare/wrangler.json'));
+  assert.ok(log.includes('dist/workers'));
+  assert.doesNotMatch(log, /Proceed with setup|ERESOLVE/);
+  assert.equal(await readFile('package.json', 'utf8'), packageBefore);
+  assert.equal(await readFile('package-lock.json', 'utf8'), lockBefore);
+});
 
 await test('Workers deploys the complete public build without framework or server metadata', async () => {
   assert.equal(output, resolve('dist/workers'));

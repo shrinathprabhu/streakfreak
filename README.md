@@ -98,7 +98,7 @@ The build rejects an oversized CSP instead of weakening it to allow arbitrary sc
 
 ## Cloudflare Workers
 
-Cloudflare Workers Static Assets is the Cloudflare deployment target. `npm run build:workers` creates `dist/workers/` with only public files, the shared `_headers` policy, permanent index redirects in `_redirects`, and a sanitized `404.html`. No application Worker script, server bundle, bindings or backend is deployed.
+Cloudflare Workers Static Assets is the Cloudflare deployment target. `npm run build` (also available as `npm run build:workers`) creates `dist/workers/` with only public files, the shared `_headers` policy, permanent index redirects in `_redirects`, and a sanitized `404.html`. No application Worker script, server bundle, bindings or backend is deployed.
 
 Create a **Worker** with Git integration and use these settings:
 
@@ -108,14 +108,14 @@ Create a **Worker** with Git integration and use these settings:
 | Production branch | `main` |
 | Root directory | Repository root |
 | Build command | `npm run build:workers` |
-| Deploy command | `npx wrangler deploy --config cloudflare/wrangler.json` |
-| Non-production branch deploy command | `npx wrangler versions upload --config cloudflare/wrangler.json` |
+| Deploy command | `npm run deploy:workers:ci` |
+| Non-production branch deploy command | `npm run deploy:workers:preview` |
 | Static assets directory | `dist/workers`, declared in Wrangler config |
 | Node.js | `24`, selected by `.node-version` |
 | App environment variables and bindings | None |
 | Custom domain | `streakfreak.lowkey.tools`, declared in `routes` with `custom_domain: true` |
 
-Workers Builds installs dependencies from the npm lockfile. Use the commands above explicitly: the config lives under `cloudflare/` to keep Vinext's static export separate from its automatic server Workers integration. Assets paths resolve relative to that config. There is no Pages output-directory setting, framework preset or `pages_build_output_dir`. The compatibility date matches the installed Wrangler runtime baseline. Remove conflicting Node version overrides in the build dashboard.
+Workers Builds installs dependencies from the npm lockfile. Use the commands above explicitly: the config lives under `cloudflare/` to keep Vinext's static export separate from its automatic server Workers integration. Assets paths resolve relative to that config. Both build commands also write `.wrangler/deploy/config.json`, pointing to the nested config, so a default `npx wrangler deploy` after the build discovers it correctly. This generated control file is ignored by Git and never copied into public assets. There is no Pages output-directory setting, framework preset or `pages_build_output_dir`. The compatibility date matches the installed Wrangler runtime baseline. Remove conflicting Node version overrides in the build dashboard.
 
 For local Cloudflare runtime preview:
 
@@ -134,8 +134,10 @@ npm run deploy:workers
 The manual deploy command builds fresh output first. Workers Builds uses separate build and deploy steps, avoiding a duplicate build. To validate packaging without uploading or publishing:
 
 ```sh
-npx wrangler deploy --config cloudflare/wrangler.json --dry-run
+npm run deploy:workers:ci -- --dry-run
 ```
+
+If deployment shows **“Proceed with setup?”** followed by **ERESOLVE**, Wrangler has entered automatic framework setup rather than loading this app's config. That setup can try to install a newer Wrangler incompatible with the pinned Workers types. Keep the repository root and build/deploy commands above in **Settings → Build**. The CI scripts select the installed Wrangler and pass `--config` explicitly; they do not install adapters or upgrade dependencies. The checked-in Wrangler 4.92.0, Vite plugin 1.37.1 and Workers types 4.20260515.1 are compatible. Use `npm ci` with the committed lockfile; do not bypass peer checks with `--force` or `--legacy-peer-deps`. The build-generated config pointer also supports the default root deploy command after a successful build. See [automatic configuration](https://developers.cloudflare.com/workers/framework-guides/automatic-configuration/) and [generated config discovery](https://developers.cloudflare.com/workers/wrangler/configuration/#generated-wrangler-configuration).
 
 `cloudflare/wrangler.json` declares `streakfreak.lowkey.tools` under `routes` with `custom_domain: true`. The hostname has no protocol, slash or wildcard; it is a custom origin domain, not a path route. On a production deploy, Wrangler provisions the custom domain and Cloudflare manages its DNS record and certificate in the account's active `lowkey.tools` zone. The deployment credentials must have permission to manage that zone. If an existing CNAME or another hosting project owns the hostname, resolve that association when switching hosts.
 
@@ -171,11 +173,10 @@ npm run typecheck
 npm run lint
 npm test
 npm run build
-node scripts/build-workers.mjs
 node --test tests/pwa.test.mjs tests/discovery.test.mjs tests/security.test.mjs
 npm run test:workers
 ```
 
-The tests exercise goal semantics, calendar/DST behavior, streak gaps, grouped history, backup validation, CSV injection escaping, IndexedDB transactions, goal snapshot preservation, import merges, and cascading deletion. Production tests verify the precache files, canonical/manifest paths, cache cleanup isolation, exact-path offline fallback, request filtering, static semantic landmarks, matching FAQ/schema facts, social metadata, creator links and crawler files. Security tests start the local static server and check actual response headers, every executable startup hash, resource caching, redirects, 404/405 behavior, HEAD requests, blocked internal files and matching Workers output. Production tests target the root deployment and verify that retired path URLs return 404. The Workers checks use Wrangler to verify static headers, MIME types, index redirects, missing routes, ETag/304, HEAD, and every offline precache URL against actual local HTTP responses. Shadcn-generated files are excluded from the app’s lint scope; they are retained unmodified.
+The tests exercise goal semantics, calendar/DST behavior, streak gaps, grouped history, backup validation, CSV injection escaping, IndexedDB transactions, goal snapshot preservation, import merges, and cascading deletion. Production tests verify the precache files, canonical/manifest paths, cache cleanup isolation, exact-path offline fallback, request filtering, static semantic landmarks, matching FAQ/schema facts, social metadata, creator links and crawler files. Security tests start the local static server and check actual response headers, every executable startup hash, resource caching, redirects, 404/405 behavior, HEAD requests, blocked internal files and matching Workers output. Production tests target the root deployment and verify that retired path URLs return 404. The Workers checks first dry-run the default root deploy command to ensure config discovery succeeds without setup or dependency changes, then use Wrangler to verify static headers, MIME types, index redirects, missing routes, ETag/304, HEAD, and every offline precache URL against actual local HTTP responses. Shadcn-generated files are excluded from the app’s lint scope; they are retained unmodified.
 
 Optional WebMCP tools (`read_habit_progress`, `save_habit_check_in`) use the same local actions and are only registered if the browser provides `document.modelContext`. Their adapter contract is unit-tested; a live supported WebMCP browser was not available for integration verification. No browser interaction, visual, or device installation testing has been performed in this task.

@@ -32,6 +32,16 @@ await writeFile(
   join(output, '_redirects'),
   '/index / 308\n/index.html / 308\n',
 );
+// Let root-level Wrangler commands discover the nested config after a build.
+// Without this, `wrangler deploy` starts framework setup and installs adapters.
+// Keep this control file outside the public assets and refresh it each build.
+const deployDirectory = resolve('.wrangler/deploy');
+await mkdir(deployDirectory, { recursive: true });
+await writeFile(
+  join(deployDirectory, 'config.json'),
+  JSON.stringify({ configPath: '../../cloudflare/wrangler.json' }, null, 2) +
+    '\n',
+);
 console.log(
   `Cloudflare Workers deployment ready: ${files.length} public files in dist/workers.`,
 );
