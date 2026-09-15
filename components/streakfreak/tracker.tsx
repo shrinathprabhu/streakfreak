@@ -1173,6 +1173,16 @@ export default function Tracker({ children }: { children: ReactNode }) {
             Your next useful find: <b>lowkey.tools</b>{' '}
             <ArrowUpRight size={13} />
           </a>
+          <p>
+            <a
+              className="more-tools"
+              href="https://github.com/shrinathprabhu/streakfreak"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Source on GitHub <ArrowUpRight size={13} aria-hidden="true" />
+            </a>
+          </p>
         </div>
       </footer>
       <input
