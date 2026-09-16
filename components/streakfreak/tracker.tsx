@@ -65,7 +65,6 @@ import { usePWA } from '@/hooks/use-pwa';
 import {
   calendarYear,
   complete,
-  createBackup,
   daySummary,
   entryKey,
   entryMap,
@@ -77,8 +76,6 @@ import {
   PRESETS,
   shiftDate,
   streaks,
-  toCSV,
-  validateBackup,
   type Backup,
   type Habit,
   type Preset,
@@ -86,14 +83,15 @@ import {
 } from '@/lib/habits';
 import * as db from '@/lib/storage';
 import { registerHabitTools } from '@/lib/webmcp';
+import { runDataTask } from '@/lib/data-worker-client';
 
 const EMPTY: Snapshot = { habits: [], entries: [] };
 const calendarDateFormatter = new Intl.DateTimeFormat('en-US', {
   dateStyle: 'full',
 });
 const monthFormatter = new Intl.DateTimeFormat('en-US', { month: 'short' });
-function downloadFile(content: string, mime: string, name: string) {
-  const url = URL.createObjectURL(new Blob([content], { type: mime }));
+function downloadFile(content: Blob, name: string) {
+  const url = URL.createObjectURL(content);
   const link = document.createElement('a');
   link.href = url;
   link.download = name;
@@ -107,6 +105,8 @@ export default function Tracker({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [storageError, setStorageError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [fileTask, setFileTask] = useState('');
+  const fileTaskLock = useRef(false);
   const lock = useRef(false);
   const [today, setToday] = useState('');
   const [date, setDate] = useState('');
@@ -142,12 +142,14 @@ export default function Tracker({ children }: { children: ReactNode }) {
     const reload = async () => {
       try {
         await db.initialize();
+        const next = await db.readSnapshot();
         if (active) {
           const now = localDate();
           setToday(now);
           setDate(now);
           setYear(Number(now.slice(0, 4)));
-          await refresh();
+          setSnapshot(next);
+          snapshotRef.current = next;
           setReady(true);
           setStorageError('');
         }
@@ -290,6 +292,13 @@ export default function Tracker({ children }: { children: ReactNode }) {
     [days, displayedHabits, map],
   );
   const activeHabits = snapshot.habits.filter((h) => h.startDate <= date);
+  const deletingEntryCount = useMemo(
+    () =>
+      deleting
+        ? snapshot.entries.filter((e) => e.habitId === deleting.id).length
+        : 0,
+    [deleting, snapshot.entries],
+  );
   const yearWins = useMemo(
     () =>
       snapshot.entries.filter(
@@ -316,7 +325,9 @@ export default function Tracker({ children }: { children: ReactNode }) {
   function chooseDate(next: string) {
     setDate(next);
     dailySection.current?.scrollIntoView({
-      behavior: 'smooth',
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+        ? 'instant'
+        : 'smooth',
       block: 'start',
     });
   }
@@ -340,13 +351,12 @@ export default function Tracker({ children }: { children: ReactNode }) {
     if (cell && !cell.disabled) cell.focus();
   }
   async function exportData(format: 'json' | 'csv') {
+    if (fileTaskLock.current) return;
+    fileTaskLock.current = true;
+    setFileTask(`Preparing your ${format.toUpperCase()} export…`);
     try {
-      const current = await db.readSnapshot();
       downloadFile(
-        format === 'json'
-          ? JSON.stringify(createBackup(current), null, 2)
-          : toCSV(current),
-        format === 'json' ? 'application/json' : 'text/csv;charset=utf-8',
+        await runDataTask({ kind: 'export', format }),
         `streakfreak-${localDate()}.${format}`,
       );
       setNotice(`${format.toUpperCase()} export downloaded.`);
@@ -357,24 +367,25 @@ export default function Tracker({ children }: { children: ReactNode }) {
           ? error.message
           : 'Export failed. Please try again.',
       );
+    } finally {
+      fileTaskLock.current = false;
+      setFileTask('');
     }
   }
   async function readImport(file?: File) {
-    if (!file) return;
+    if (!file || fileTaskLock.current) return;
+    fileTaskLock.current = true;
+    setFileTask('Reading your backup…');
     try {
-      if (file.size > 10 * 1024 * 1024)
-        throw new Error('Choose a backup smaller than 10 MB.');
-      const parsed = validateBackup(JSON.parse(await file.text()));
+      const parsed = await runDataTask({ kind: 'parse', file });
       setImporting(parsed);
     } catch (error) {
       setStorageError(
-        error instanceof SyntaxError
-          ? 'This file is not valid JSON. Choose a Streakfreak backup.'
-          : error instanceof Error
-            ? error.message
-            : 'Unable to read this file.',
+        error instanceof Error ? error.message : 'Unable to read this file.',
       );
     } finally {
+      fileTaskLock.current = false;
+      setFileTask('');
       if (fileInput.current) fileInput.current.value = '';
     }
   }
@@ -437,10 +448,10 @@ export default function Tracker({ children }: { children: ReactNode }) {
             </button>
           </div>
         )}
-        {!ready && !storageError && (
+        {((!ready && !storageError) || fileTask) && (
           <output className="loading-note">
-            <LoaderCircle size={16} className="spinner" /> Opening your local
-            habit journal…
+            <LoaderCircle size={16} className="spinner" aria-hidden="true" />
+            {fileTask || 'Opening your local habit journal…'}
           </output>
         )}
         <Tabs
@@ -481,7 +492,7 @@ export default function Tracker({ children }: { children: ReactNode }) {
                   <Target size={17} /> Today’s progress
                 </span>
                 <div className="stat-value">
-                  {doneToday}
+                  {ready ? doneToday : '—'}
                   <span>/ {dueToday.length} habits</span>
                 </div>
                 <div className="stat-caption">
@@ -497,7 +508,7 @@ export default function Tracker({ children }: { children: ReactNode }) {
                   <Flame size={17} /> Current streak
                 </span>
                 <div className="stat-value">
-                  {allStreaks.current}
+                  {ready ? allStreaks.current : '—'}
                   <span>{allStreaks.current === 1 ? 'day' : 'days'}</span>
                 </div>
                 <div className="stat-caption">
@@ -511,7 +522,7 @@ export default function Tracker({ children }: { children: ReactNode }) {
                   <TrendingUp size={17} /> Best streak
                 </span>
                 <div className="stat-value">
-                  {allStreaks.best}
+                  {ready ? allStreaks.best : '—'}
                   <span>{allStreaks.best === 1 ? 'day' : 'days'}</span>
                 </div>
                 <div className="stat-caption">
@@ -743,7 +754,20 @@ export default function Tracker({ children }: { children: ReactNode }) {
                   )}
                 </div>
               </div>
-              <div className="habit-grid">
+              <div className="habit-grid" aria-busy={!ready}>
+                {!ready &&
+                  Array.from({ length: 4 }, (_, index) => (
+                    <div
+                      key={index}
+                      className="habit-card habit-placeholder"
+                      aria-hidden="true"
+                    >
+                      <span className="placeholder-icon" />
+                      <span className="placeholder-line" />
+                      <span className="placeholder-line short" />
+                      <span className="placeholder-button" />
+                    </div>
+                  ))}
                 {activeHabits.map((h) => {
                   const entry = map.get(entryKey(h.id, date));
                   const done = complete(entry);
@@ -985,7 +1009,7 @@ export default function Tracker({ children }: { children: ReactNode }) {
                     )}{' '}
                     {pwa.offlineReady
                       ? 'Ready to use offline'
-                      : 'Offline caching becomes available in the installed production app'}
+                      : 'Preparing offline access'}
                   </span>
                 </div>
                 <button
@@ -1025,7 +1049,7 @@ export default function Tracker({ children }: { children: ReactNode }) {
                 </p>
                 <div className="export-options">
                   <button
-                    disabled={!ready}
+                    disabled={!ready || busy || !!fileTask}
                     className="export-choice"
                     onClick={() => void exportData('json')}
                   >
@@ -1037,7 +1061,7 @@ export default function Tracker({ children }: { children: ReactNode }) {
                     <Download size={18} />
                   </button>
                   <button
-                    disabled={!ready}
+                    disabled={!ready || busy || !!fileTask}
                     className="export-choice"
                     onClick={() => void exportData('csv')}
                   >
@@ -1050,7 +1074,7 @@ export default function Tracker({ children }: { children: ReactNode }) {
                   </button>
                 </div>
                 <button
-                  disabled={!ready || busy}
+                  disabled={!ready || busy || !!fileTask}
                   className="text-button"
                   onClick={() => fileInput.current?.click()}
                 >
@@ -1115,25 +1139,24 @@ export default function Tracker({ children }: { children: ReactNode }) {
                 <Download size={23} />
               </span>
               <div>
-                <h3>
-                  {pwa.installed
-                    ? 'Your little daily companion.'
-                    : 'A little home on your home screen.'}
-                </h3>
+                <h3>Your little daily companion.</h3>
                 <p>
-                  {pwa.installed
-                    ? 'Streakfreak is installed on this device.'
-                    : 'Install Streakfreak for quick access and offline check-ins.'}
+                  Keep Streakfreak on your home screen for quick, offline
+                  check-ins.
                 </p>
               </div>
-              {!pwa.installed && (
-                <button
-                  className="text-button"
-                  onClick={() => void pwa.install()}
-                >
-                  Install app <ArrowUpRight size={18} />
-                </button>
-              )}
+              <button
+                className="text-button install-action"
+                disabled={pwa.installed}
+                onClick={() => void pwa.install()}
+              >
+                {pwa.installed ? 'Installed' : 'Install app'}
+                {pwa.installed ? (
+                  <Check size={18} />
+                ) : (
+                  <ArrowUpRight size={18} />
+                )}
+              </button>
             </section>
           </TabsContent>
         </Tabs>
@@ -1246,8 +1269,7 @@ export default function Tracker({ children }: { children: ReactNode }) {
             Let this habit go?
           </AlertDialogTitle>
           <AlertDialogDescription>
-            Deleting “{deleting?.name}” also removes its{' '}
-            {snapshot.entries.filter((e) => e.habitId === deleting?.id).length}{' '}
+            Deleting “{deleting?.name}” also removes its {deletingEntryCount}{' '}
             check-ins. This cannot be undone. Export a backup first if you want
             to keep them.
           </AlertDialogDescription>
@@ -1287,6 +1309,7 @@ export default function Tracker({ children }: { children: ReactNode }) {
           <div className="export-options">
             <button
               className="export-choice"
+              disabled={!ready || busy || !!fileTask}
               onClick={() => void exportData('json')}
             >
               <span className="file-type">{`{ }`}</span>
@@ -1298,6 +1321,7 @@ export default function Tracker({ children }: { children: ReactNode }) {
             </button>
             <button
               className="export-choice"
+              disabled={!ready || busy || !!fileTask}
               onClick={() => void exportData('csv')}
             >
               <span className="file-type">CSV</span>
@@ -1346,7 +1370,7 @@ export default function Tracker({ children }: { children: ReactNode }) {
                 if (
                   importing &&
                   (await mutate(
-                    () => db.mergeBackup(importing),
+                    () => runDataTask({ kind: 'merge', backup: importing }),
                     'Backup imported. Welcome back to your progress.',
                   ))
                 )

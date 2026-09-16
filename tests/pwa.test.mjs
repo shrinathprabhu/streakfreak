@@ -218,3 +218,41 @@ await test('pre-cached JavaScript remains available offline', async () => {
   assert.ok((await (await response).text()).length > 0);
   offline = false;
 });
+await test('the backup worker is bundled locally and available offline', async () => {
+  const worker = assets.find((path) => /data\.worker-[\w-]+\.js$/.test(path));
+  assert.ok(worker, 'The backup worker must be part of the offline shell');
+  const clients = await Promise.all(
+    assets
+      .filter((path) => path.includes('/chunks/') && path.endsWith('.js'))
+      .map((path) => readFile(resolve(root, path.slice(1)), 'utf8')),
+  );
+  const launches = clients.flatMap((source) =>
+    [...source.matchAll(/new Worker\((["'`])([^"'`]+)\1,/g)].map(
+      (match) => match[2],
+    ),
+  );
+  assert.ok(
+    launches.includes(worker),
+    'The bundled constructor must use the HTTP asset path, not a server file URL',
+  );
+  assert.equal(
+    new URL(worker, 'https://streakfreak.test/').origin,
+    'https://streakfreak.test',
+  );
+  offline = true;
+  let response;
+  handlers.fetch({
+    request: {
+      url: `https://streakfreak.test${worker}`,
+      method: 'GET',
+      mode: 'same-origin',
+    },
+    respondWith: (promise) => {
+      response = promise;
+    },
+  });
+  assert.ok((await (await response).text()).includes('onmessage'));
+  offline = false;
+  const headers = await readFile(resolve(root, '_headers'), 'utf8');
+  assert.ok(headers.includes("worker-src 'self'"));
+});

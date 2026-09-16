@@ -2,7 +2,9 @@
 
 A frontend-only, installable habit tracker. No login, analytics, backend, subscription, or cloud habit storage. The UI uses React 19, TypeScript, Vinext’s static export, Base UI/Shadcn primitives, Lucide icons, and plain CSS with Tailwind utilities.
 
-Typography uses [Geist Sans by Vercel](https://vercel.com/font), bundled locally as a 69.7 KB variable WOFF2. Headings, body text and controls share the font. `next/font/local` provides a preload and `font-display: swap`; the service worker caches the font for offline use. The original OFL license ships with the site. Font source details are in `app/fonts/README.md`.
+Typography uses [Geist Sans by Vercel](https://vercel.com/font), bundled locally as a 69.7 KB variable WOFF2. Headings, body text and controls share the font. `next/font/local` provides a preload and `font-display: optional` to avoid a late font swap on slow connections; the service worker caches the font for offline use. The original OFL license ships with the site. Font source details are in `app/fonts/README.md`.
+
+Overview, Templates and Your data share one responsive container. Stable scrollbar space, constant tab label weights, reserved loading cards and floating status messages reduce layout shifts. Short opacity and color transitions respect reduced-motion preferences. Backup parsing, validation, JSON/CSV formatting and import writes run in a local Web Worker so larger backups do not perform this work on the UI thread. The worker is included in the offline cache; no habit data leaves the device. Actual CLS and interaction timings should still be measured in a browser with representative saved data.
 
 ## Run
 

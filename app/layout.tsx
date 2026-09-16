@@ -7,7 +7,8 @@ const geistSans = localFont({
   variable: '--font-geist-sans',
   weight: '100 900',
   style: 'normal',
-  display: 'swap',
+  // Keep a slow font response from replacing already-visible text mid-session.
+  display: 'optional',
   preload: true,
   fallback: ['Helvetica Neue', 'Arial', 'sans-serif'],
 });
