@@ -83,7 +83,7 @@ try {
     for (const path of [
       entry,
       `${prefix}manifest.webmanifest`,
-      `${prefix}index.rsc`,
+      `${prefix}index.txt`,
     ]) {
       const response = await fetchPath(path);
       assert.equal(response.status, 200, path);

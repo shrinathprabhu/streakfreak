@@ -153,7 +153,7 @@ try {
       assert.equal(response.headers.get(key), value, key);
     }
     const resources = [
-      'index.rsc',
+      'index.txt',
       'sw.js',
       'manifest.webmanifest',
       'robots.txt',
