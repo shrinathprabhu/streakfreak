@@ -87,12 +87,15 @@ export function securityHeaders(csp) {
   };
 }
 
+// A static export writes the home route's Flight payload beside index.html.
+const isRscPayload = (file) => file === 'index.txt';
+
 export function resourceHeaders(file) {
   const headers = { 'Cache-Control': REVALIDATE };
   if (file.startsWith('_next/static/')) headers['Cache-Control'] = IMMUTABLE;
   else if (/\.(?:png|svg)$/.test(file))
     headers['Cache-Control'] = 'public, max-age=86400';
-  else if (/\.(?:txt|xml)$/.test(file))
+  else if (/\.(?:txt|xml)$/.test(file) && !isRscPayload(file))
     headers['Cache-Control'] = 'public, max-age=3600';
   if (file === 'sw.js') {
     headers['Cache-Control'] = 'no-cache, max-age=0, must-revalidate';
@@ -108,7 +111,7 @@ export function resourceHeaders(file) {
     headers['Content-Type'] = 'text/plain; charset=utf-8';
   if (file.endsWith('.webmanifest'))
     headers['Content-Type'] = 'application/manifest+json';
-  if (file.endsWith('.rsc')) headers['Content-Type'] = 'text/x-component';
+  if (isRscPayload(file)) headers['Content-Type'] = 'text/x-component';
   return headers;
 }
 
